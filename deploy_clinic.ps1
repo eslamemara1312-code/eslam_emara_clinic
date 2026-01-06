@@ -48,14 +48,37 @@ if ($choice -eq "2") {
 if ($choice -eq "1") {
     Write-Host "Syncing with Cloud..."
     if ($hasGit) {
+        # Ensure we are in the root
+        Set-Location "$repoRoot"
+        
         if (-not (Test-Path "$repoRoot/.git")) {
             git init
             git remote add origin https://github.com/eslamemara1312-code/eslam_emara_clinic
         }
-        git add .
-        git commit -m "Auto Update"
-        git push origin main
-        if ($LASTEXITCODE -ne 0) { git push origin master }
+        
+        # Force branch name to main
+        git checkout -b main 2>$null
+        git branch -m main 2>$null
+        
+        Write-Host "Adding files..."
+        git add -A
+        
+        Write-Host "Checking status..."
+        git status
+        
+        Write-Host "Committing..."
+        git commit -m "Auto Update $(Get-Date -Format 'HH:mm')"
+        
+        Write-Host "Uploading (Pushing)..."
+        git push -u origin main
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "PUSH FAILED. You might need to login or check the GitHub URL." -ForegroundColor Red
+            Write-Host "GitHub Repo: https://github.com/eslamemara1312-code/eslam_emara_clinic"
+        }
+        else {
+            Write-Host "SUCCESS! Your site is updating." -ForegroundColor Green
+        }
     }
 }
 
