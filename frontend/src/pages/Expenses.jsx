@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, DollarSign, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { getExpenses, createExpense, deleteExpense, getFinancialStats } from '../api';
+import { getTodayStr } from '../utils/toothUtils';
 
 export default function Expenses() {
     const [expenses, setExpenses] = useState([]);
@@ -9,7 +10,7 @@ export default function Expenses() {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Form
-    const [newItem, setNewItem] = useState({ item_name: '', cost: '', category: 'General', date: new Date().toISOString().split('T')[0], notes: '' });
+    const [newItem, setNewItem] = useState({ item_name: '', cost: '', category: 'General', date: getTodayStr(), notes: '' });
 
     useEffect(() => {
         loadData();
@@ -36,7 +37,7 @@ export default function Expenses() {
         try {
             await createExpense({ ...newItem, cost: parseFloat(newItem.cost) });
             setIsModalOpen(false);
-            setNewItem({ item_name: '', cost: '', category: 'General', date: new Date().toISOString().split('T')[0], notes: '' });
+            setNewItem({ item_name: '', cost: '', category: 'General', date: getTodayStr(), notes: '' });
             loadData();
         } catch (err) {
             alert('Failed to create expense');

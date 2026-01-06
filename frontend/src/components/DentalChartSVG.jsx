@@ -1,4 +1,5 @@
 import React from 'react';
+import { universalToPalmer, toothToNumber } from '../utils/toothUtils';
 
 // Tooth Shapes defined as SVG paths (Simplified realistic shapes)
 const TOOTH_PATHS = {
@@ -23,52 +24,7 @@ const TOOTH_PATHS = {
 
 // --- Palmer Notation Helper ---
 const getPalmerLabel = (id, isPediatric) => {
-    // Pediatric: A-E per quadrant
-    if (isPediatric) {
-        const map = {
-            'A': 'E', 'B': 'D', 'C': 'C', 'D': 'B', 'E': 'A', // UR
-            'F': 'A', 'G': 'B', 'H': 'C', 'I': 'D', 'J': 'E', // UL
-            'K': 'E', 'L': 'D', 'M': 'C', 'N': 'B', 'O': 'A', // LL ... wait, Universal K is LL 2nd Molar?
-            // Universal Child:
-            // A-J (Upper Arch) -> A(Right 2nd Molar)..E(Central)..J(Left 2nd Molar)
-            // K-T (Lower Arch) -> K(Left 2nd Molar)..O(Central)..T(Right 2nd Molar)
-            // Palmer: A is Central, E is Molar
-            // So:
-            // UR: A(Univ) -> E, B -> D, C -> C, D -> B, E -> A
-            // UL: F(Univ) -> A, G -> B, H -> C, I -> D, J -> E
-            // LL: K(Univ) -> E, L -> D, M -> C, N -> B, O -> A  <-- Wait, K is Back Left?
-            // Universal K is Lower Left 2nd Molar. O is Lower Left Central.
-            // Palmer LL: Central is A, Molar is E.
-            // So K -> E, O -> A. Correct.
-            // LR: P(Univ) -> A, Q -> B, R -> C, S -> D, T -> E
-            // P is Lower Right Central?
-            // Universal:
-            // 32 is LR 3rd Molar. 25 is LR Central.
-            // Child: T is LR 2nd Molar. P is LR Central.
-            // So P -> A, T -> E. Correct.
-
-            'P': 'A', 'Q': 'B', 'R': 'C', 'S': 'D', 'T': 'E'  // LR
-        }
-        return map[id] || id;
-    }
-
-    // Adult: 1-8 per quadrant
-    const n = parseInt(id);
-    // UR: 1-8 (1 is 3rd Molar, 8 is Central) -> Palmer 8..1
-    if (n >= 1 && n <= 8) return (9 - n).toString(); // 1->8, 8->1
-
-    // UL: 9-16 (9 is Central, 16 is 3rd Molar) -> Palmer 1..8
-    if (n >= 9 && n <= 16) return (n - 8).toString(); // 9->1, 16->8
-
-    // LL: 17-24 (17 is 3rd Molar, 24 is Central) -> Palmer 8..1
-    if (n >= 17 && n <= 24) return (25 - n).toString(); // 17->8, 24->1 (Wait: 17 is Back Left? Universal 17 is LL 3rd Molar.)
-    // Palmer LL 8 is 3rd Molar.
-    // So 17 -> 8. 24 -> 1. Correct. 25-17=8. 25-24=1.
-
-    // LR: 25-32 (25 is Central, 32 is 3rd Molar) -> Palmer 1..8
-    if (n >= 25 && n <= 32) return (n - 24).toString(); // 25->1, 32->8
-
-    return id;
+    return universalToPalmer(id, isPediatric);
 };
 
 const getToothPath = (id, isPediatric) => {
@@ -218,13 +174,13 @@ export default function DentalChartSVG({ teethStatus, onToothClick, isPediatric 
 
                     <div className="flex gap-1 px-4 pb-4">
                         {upperRight.map(n => (
-                            <SVGTooth key={n} number={n} status={teethStatus[n]} onClick={onToothClick} isPediatric={isPediatric} />
+                            <SVGTooth key={n} number={n} status={teethStatus[toothToNumber(n)]} onClick={onToothClick} isPediatric={isPediatric} />
                         ))}
                     </div>
                     <div className="w-0.5"></div>
                     <div className="flex gap-1 px-4 pb-4">
                         {upperLeft.map(n => (
-                            <SVGTooth key={n} number={n} status={teethStatus[n]} onClick={onToothClick} isPediatric={isPediatric} />
+                            <SVGTooth key={n} number={n} status={teethStatus[toothToNumber(n)]} onClick={onToothClick} isPediatric={isPediatric} />
                         ))}
                     </div>
                 </div>
@@ -237,13 +193,13 @@ export default function DentalChartSVG({ teethStatus, onToothClick, isPediatric 
 
                     <div className="flex gap-1 px-4 pt-4">
                         {lowerRight.map(n => (
-                            <SVGTooth key={n} number={n} status={teethStatus[n]} onClick={onToothClick} isPediatric={isPediatric} />
+                            <SVGTooth key={n} number={n} status={teethStatus[toothToNumber(n)]} onClick={onToothClick} isPediatric={isPediatric} />
                         ))}
                     </div>
                     <div className="w-0.5"></div>
                     <div className="flex gap-1 px-4 pt-4">
                         {lowerLeft.map(n => (
-                            <SVGTooth key={n} number={n} status={teethStatus[n]} onClick={onToothClick} isPediatric={isPediatric} />
+                            <SVGTooth key={n} number={n} status={teethStatus[toothToNumber(n)]} onClick={onToothClick} isPediatric={isPediatric} />
                         ))}
                     </div>
                 </div>

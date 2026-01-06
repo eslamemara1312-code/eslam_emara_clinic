@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, User, CheckCircle, XCircle } from 'lucide-react';
 import { getAppointments, createAppointment, updateAppointmentStatus, getPatients } from '../api';
+import { getTodayDateTimeStr } from '../utils/toothUtils';
 
 export default function Appointments() {
     const [appointments, setAppointments] = useState([]);
     const [patients, setPatients] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newAppt, setNewAppt] = useState({ patient_id: '', date_time: '', notes: '' });
+    const [newAppt, setNewAppt] = useState({ patient_id: '', date_time: getTodayDateTimeStr(), notes: '' });
 
     useEffect(() => {
         loadData();
@@ -26,7 +27,7 @@ export default function Appointments() {
                 patient_id: parseInt(newAppt.patient_id)
             });
             setIsModalOpen(false);
-            setNewAppt({ patient_id: '', date_time: '', notes: '' });
+            setNewAppt({ patient_id: '', date_time: getTodayDateTimeStr(), notes: '' });
             loadData();
         } catch (err) {
             alert('فشل في حجز الموعد');

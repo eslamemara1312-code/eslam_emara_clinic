@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import DentalChartSVG from '../components/DentalChartSVG';
 import { Edit2, Trash2, Plus, X, Save, Printer, FileText, Baby, User as UserIcon, File as FileIcon, Upload, RefreshCw } from 'lucide-react';
-import { toothToNumber } from '../utils/toothUtils';
+import { toothToNumber, fdiToPalmer, palmerToFdi, getTodayStr, toothToDisplay, universalToPalmer } from '../utils/toothUtils';
 import {
     getPatient, updatePatient, getPatientTeeth, updateToothStatus,
     getPatientTreatments, deletePatient, getPatientPayments,
@@ -30,16 +30,17 @@ export default function PatientDetails() {
     const [isRxModalOpen, setIsRxModalOpen] = useState(false);
     const [isTreatmentModalOpen, setIsTreatmentModalOpen] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isToothSelectModalOpen, setIsToothSelectModalOpen] = useState(false);
 
     // Forms
     const [rxDrugs, setRxDrugs] = useState([{ name: '', dose: '' }]);
     const [rxNotes, setRxNotes] = useState('');
-    const initialTreatment = { diagnosis: '', procedure: '', cost: '', discount: '', tooth_number: '', canal_count: '', canals: [{ name: '', length: '' }], sessions: '', complications: '', notes: '' };
+    const initialTreatment = { date: getTodayStr(), diagnosis: '', procedure: '', cost: '', discount: '', tooth_number: '', canal_count: '', canals: [{ name: '', length: '' }], sessions: '', complications: '', notes: '' };
     const [newTreatment, setNewTreatment] = useState(initialTreatment);
     const [editingTreatmentId, setEditingTreatmentId] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [selectedToothCondition, setSelectedToothCondition] = useState('Healthy');
-    const [newPayment, setNewPayment] = useState({ amount: '', notes: '', date: '' });
+    const [newPayment, setNewPayment] = useState({ amount: '', notes: '', date: getTodayStr() });
 
     useEffect(() => {
         loadData();
@@ -100,11 +101,11 @@ export default function PatientDetails() {
     };
 
     const handleToothClick = (number) => {
-        const current = teethStatus[number]?.condition || 'Healthy';
+        const fdi = toothToNumber(number);
+        const current = teethStatus[fdi]?.condition || 'Healthy';
         setSelectedToothCondition(current);
-        // Convert pediatric letters (A-T) to FDI numbers (51-85) for backend storage
-        const numericTooth = toothToNumber(number);
-        setNewTreatment({ ...initialTreatment, tooth_number: numericTooth });
+        const palmerPrefix = universalToPalmer(number, isPediatric);
+        setNewTreatment({ ...initialTreatment, tooth_number: palmerPrefix });
         setIsTreatmentModalOpen(true);
     };
 
@@ -121,12 +122,13 @@ export default function PatientDetails() {
 
     const handleAddTreatment = async () => {
         try {
+            const fdiTooth = palmerToFdi(newTreatment.tooth_number);
             const treatmentData = {
                 ...newTreatment,
                 patient_id: parseInt(id),
                 cost: parseFloat(newTreatment.cost) || 0,
                 discount: parseFloat(newTreatment.discount) || 0,
-                tooth_number: newTreatment.tooth_number ? parseInt(newTreatment.tooth_number) : null,
+                tooth_number: fdiTooth,
                 canal_count: newTreatment.canal_count ? parseInt(newTreatment.canal_count) : null,
                 canal_lengths: JSON.stringify(newTreatment.canals.filter(c => c.name || c.length)),
                 diagnosis: newTreatment.diagnosis || "تشخيص عام",
@@ -138,13 +140,10 @@ export default function PatientDetails() {
                 await updateTreatment(editingTreatmentId, treatmentData);
             } else {
                 // Create new
-                // Update Tooth Status if changed or set (Only ONCE, during creation mainly, or separate action. 
-                // Currently user changes tooth status by clicking tooth diagram. 
-                // We'll keep tooth status update separate or simultaneous for now).
-                if (newTreatment.tooth_number) {
+                if (fdiTooth) {
                     await updateToothStatus({
                         patient_id: parseInt(id),
-                        tooth_number: parseInt(newTreatment.tooth_number),
+                        tooth_number: fdiTooth,
                         condition: selectedToothCondition
                     });
                 }
@@ -185,7 +184,7 @@ export default function PatientDetails() {
             procedure: t.procedure,
             cost: t.cost,
             discount: t.discount,
-            tooth_number: t.tooth_number || '',
+            tooth_number: fdiToPalmer(t.tooth_number) || '',
             canal_count: t.canal_count || '',
             canals: canals,
             sessions: t.sessions || '',
@@ -358,7 +357,7 @@ export default function PatientDetails() {
                     <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                             <h3 className="font-bold text-slate-700">سجل الزيارات والعلاجات</h3>
-                            <button onClick={() => { setNewTreatment(initialTreatment); setEditingTreatmentId(null); setIsTreatmentModalOpen(true); }} className="text-primary text-sm font-bold hover:underline">+ تسجيل علاج يدوي</button>
+                            <button onClick={() => { setIsToothSelectModalOpen(true); }} className="text-primary text-sm font-bold hover:underline">+ تسجيل علاج يدوي</button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-right align-middle">
@@ -378,7 +377,7 @@ export default function PatientDetails() {
                                     {history.map(item => (
                                         <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="p-4 whitespace-nowrap">{new Date(item.date).toLocaleDateString()}</td>
-                                            <td className="p-4 font-mono text-slate-500 whitespace-nowrap">{item.tooth_number || '-'}</td>
+                                            <td className="p-4 font-mono text-slate-500 whitespace-nowrap">{fdiToPalmer(item.tooth_number) || '-'}</td>
                                             <td className="p-4 font-bold text-slate-700 whitespace-nowrap">{item.diagnosis}</td>
                                             <td className="p-4 whitespace-nowrap">{item.procedure}</td>
                                             <td className="p-4 text-sm text-slate-700">
@@ -561,7 +560,7 @@ export default function PatientDetails() {
             {/* Modals */}
             {isEditPatientOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl">
+                    <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4">تعديل بيانات المريض</h3>
                         <form onSubmit={handleSavePatient} className="space-y-4">
                             <input value={patient.name} onChange={(e) => setPatient({ ...patient, name: e.target.value })} className="w-full p-3 bg-slate-50 rounded-xl outline-none" placeholder="الاسم" />
@@ -578,7 +577,7 @@ export default function PatientDetails() {
 
             {isTreatmentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4">
                             {editingTreatmentId ? 'تعديل بيانات العلاج' : (newTreatment.tooth_number ? `تفاصيل السن رقم #${newTreatment.tooth_number}` : 'تسجيل علاج جديد')}
                         </h3>
@@ -763,7 +762,7 @@ export default function PatientDetails() {
             {/* Same Payment/Rx Modals ... omitted for brevity but should be kept if full file overwrite */}
             {isPaymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4">إضافة دفعة مالية</h3>
                         <div className="space-y-4">
                             <input value={newPayment.amount} onChange={e => setNewPayment({ ...newPayment, amount: e.target.value })} placeholder="المبلغ المدفوع" type="number" className="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold text-lg text-emerald-600" />
@@ -795,6 +794,41 @@ export default function PatientDetails() {
                         <div className="flex justify-end gap-3 mt-4">
                             <button onClick={() => setIsRxModalOpen(false)} className="px-4 py-2 hover:bg-slate-100 rounded-lg">إلغاء</button>
                             <button onClick={handlePrintRx} className="px-6 py-2 bg-purple-600 text-white rounded-lg">طباعة</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isToothSelectModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+                    <div className="bg-white w-full max-w-4xl rounded-3xl p-6 shadow-2xl overflow-y-auto max-h-[95vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-bold text-slate-800">اختر السن</h3>
+                            <button onClick={() => setIsToothSelectModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><X /></button>
+                        </div>
+
+                        <div className="mb-8">
+                            <DentalChartSVG
+                                teethStatus={teethStatus}
+                                onToothClick={(num) => {
+                                    handleToothClick(num);
+                                    setIsToothSelectModalOpen(false);
+                                }}
+                                isPediatric={isPediatric}
+                            />
+                        </div>
+
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={() => {
+                                    setNewTreatment({ ...initialTreatment, tooth_number: '' });
+                                    setIsTreatmentModalOpen(true);
+                                    setIsToothSelectModalOpen(false);
+                                }}
+                                className="px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all"
+                            >
+                                متابعة بدون تحديد سن
+                            </button>
                         </div>
                     </div>
                 </div>
