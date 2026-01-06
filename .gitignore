@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venc/
+.env
+
+# Databases
+*.db
+*.db.bak
+
+# Node / React
+node_modules/
+dist/
+.DS_Store
+
+# Local config
+.cloudflared/
+CLOUDFLARE_SETUP.md
+check_db_direct.py
+ensure_admin.py

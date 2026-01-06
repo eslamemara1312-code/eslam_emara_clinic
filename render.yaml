@@ -1,0 +1,24 @@
+services:
+  # Backend FastAPI
+  - type: web
+    name: eslam-clinic-backend
+    plan: free
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker backend.main:app
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_Bp8fPoTgmi3L@ep-nameless-truth-agnleqgg-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: PYTHON_VERSION
+        value: 3.14.0
+
+  # Frontend React (Static Site)
+  - type: static_site
+    name: eslam-clinic-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    publishDir: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

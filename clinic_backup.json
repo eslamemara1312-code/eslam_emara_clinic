@@ -1,0 +1,323 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "hashed_password": "$2b$12$Nqq1kst5Cx/cyLaqoGZL2ujTeC3Ml19GNWRd8EgMXwnyHBgl4W/Tm",
+      "role": "doctor"
+    },
+    {
+      "id": 2,
+      "username": "eslam",
+      "hashed_password": "$2b$12$EGQ.xt9ek.fxZ72EPQvWLu8/POhjctpTCF/WIlEx9mkQ0WuaWemqi",
+      "role": "admin"
+    }
+  ],
+  "procedures": [
+    {
+      "id": 1,
+      "name": "حشو عصب",
+      "price": 1200.0
+    },
+    {
+      "id": 2,
+      "name": "حشو ليزر",
+      "price": 600.0
+    },
+    {
+      "id": 3,
+      "name": "حشو ليزر + ",
+      "price": 700.0
+    },
+    {
+      "id": 4,
+      "name": "خلع",
+      "price": 200.0
+    },
+    {
+      "id": 5,
+      "name": "PFM crown",
+      "price": 900.0
+    },
+    {
+      "id": 6,
+      "name": "zercon crown",
+      "price": 2000.0
+    },
+    {
+      "id": 7,
+      "name": "scalling",
+      "price": 300.0
+    }
+  ],
+  "patients": [
+    {
+      "id": 1,
+      "name": "محمد سليم",
+      "age": 30,
+      "phone": "34657458",
+      "address": "",
+      "medical_history": "",
+      "notes": "",
+      "created_at": "2026-01-04T19:46:55.948352"
+    },
+    {
+      "id": 2,
+      "name": "ايمن صبحى",
+      "age": 16,
+      "phone": "35646",
+      "address": "",
+      "medical_history": "",
+      "notes": "",
+      "created_at": "2026-01-04T19:50:07.816826"
+    },
+    {
+      "id": 3,
+      "name": "محمد سليم",
+      "age": 0,
+      "phone": "466667",
+      "address": "",
+      "medical_history": "",
+      "notes": "",
+      "created_at": "2026-01-05T18:25:55.715617"
+    }
+  ],
+  "expenses": [],
+  "appointments": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "date_time": "2026-01-07T13:58:00",
+      "status": "Scheduled",
+      "notes": ""
+    }
+  ],
+  "tooth_status": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "tooth_number": 30,
+      "condition": "Decayed",
+      "notes": null
+    },
+    {
+      "id": 2,
+      "patient_id": 1,
+      "tooth_number": 9,
+      "condition": "Crown",
+      "notes": null
+    },
+    {
+      "id": 3,
+      "patient_id": 2,
+      "tooth_number": 7,
+      "condition": "Crown",
+      "notes": null
+    },
+    {
+      "id": 4,
+      "patient_id": 2,
+      "tooth_number": 8,
+      "condition": "Crown",
+      "notes": null
+    },
+    {
+      "id": 5,
+      "patient_id": 2,
+      "tooth_number": 19,
+      "condition": "Missing",
+      "notes": null
+    },
+    {
+      "id": 6,
+      "patient_id": 2,
+      "tooth_number": 18,
+      "condition": "RootCanal",
+      "notes": null
+    },
+    {
+      "id": 7,
+      "patient_id": 1,
+      "tooth_number": 19,
+      "condition": "Decayed",
+      "notes": null
+    }
+  ],
+  "treatments": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "tooth_number": 30,
+      "diagnosis": "Decayed",
+      "procedure": "حشو عصب",
+      "cost": 1200.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:47:14.444722",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 2,
+      "patient_id": 1,
+      "tooth_number": 9,
+      "diagnosis": "Crown",
+      "procedure": "pfm",
+      "cost": 900.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:47:36.447367",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 3,
+      "patient_id": 2,
+      "tooth_number": 7,
+      "diagnosis": "Crown",
+      "procedure": "zercon crown",
+      "cost": 2000.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:50:22.725833",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 4,
+      "patient_id": 2,
+      "tooth_number": 8,
+      "diagnosis": "Crown",
+      "procedure": "zercon crown",
+      "cost": 2000.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:50:29.134282",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 5,
+      "patient_id": 2,
+      "tooth_number": 19,
+      "diagnosis": "Missing",
+      "procedure": "",
+      "cost": 0.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:50:39.665064",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 6,
+      "patient_id": 2,
+      "tooth_number": 18,
+      "diagnosis": "RootCanal",
+      "procedure": "حشو عصب",
+      "cost": 1200.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:50:45.926004",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 7,
+      "patient_id": 2,
+      "tooth_number": null,
+      "diagnosis": "",
+      "procedure": "scalling",
+      "cost": 300.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:50:59.592216",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 8,
+      "patient_id": 1,
+      "tooth_number": 19,
+      "diagnosis": "Decayed",
+      "procedure": "حشو عصب",
+      "cost": 1200.0,
+      "discount": 0.0,
+      "date": "2026-01-04T19:57:36.244291",
+      "canal_count": null,
+      "canal_lengths": null,
+      "sessions": null,
+      "complications": null,
+      "notes": null
+    },
+    {
+      "id": 9,
+      "patient_id": 2,
+      "tooth_number": 14,
+      "diagnosis": "Deep Caries",
+      "procedure": "Root Canal Treatment",
+      "cost": 2500.0,
+      "discount": 200.0,
+      "date": "2026-01-05T01:11:40",
+      "canal_count": 3,
+      "canal_lengths": "21, 22, 21.5",
+      "sessions": "session 1: 2026-01-05 - cleaning\nsession 2: 2026-01-12 - obturation",
+      "complications": "Slight bleeding in distal canal",
+      "notes": null
+    },
+    {
+      "id": 10,
+      "patient_id": 1,
+      "tooth_number": 14,
+      "diagnosis": "Root Canal",
+      "procedure": "Endo",
+      "cost": 1500.0,
+      "discount": 0.0,
+      "date": "2026-01-05T14:52:34.535116",
+      "canal_count": 3,
+      "canal_lengths": "MB: 20mm, DB: 21mm, P: 22mm",
+      "sessions": "Session 1: Cleaning\nSession 2: Obturation",
+      "complications": "None",
+      "notes": "Patient tolerant"
+    }
+  ],
+  "payments": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "amount": 700.0,
+      "date": "2026-01-04T00:00:00",
+      "notes": ""
+    },
+    {
+      "id": 2,
+      "patient_id": 2,
+      "amount": 4000.0,
+      "date": "2026-01-03T00:00:00",
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "patient_id": 2,
+      "amount": 400.0,
+      "date": "2026-01-04T00:00:00",
+      "notes": ""
+    }
+  ],
+  "attachments": [],
+  "prescriptions": []
+}
