@@ -10,6 +10,13 @@ xcopy /Y /S /I backend hf_backend\backend >nul
 copy /Y requirements.txt hf_backend\ >nul
 echo Backend files synced to hf_backend.
 
+:: Avoid pushing database and cache files to HF
+(
+echo *.db
+echo __pycache__/
+echo *.pyc
+) > hf_backend\.gitignore
+
 echo.
 echo ==========================================
 echo [2/3] Updating Frontend (GitHub -> Netlify)
@@ -38,6 +45,10 @@ if not exist .git (
     git branch -m main >nul
     echo Initialized git repo for Backend.
 )
+
+:: Ensure binaries are untracked
+git rm --cached *.db 2>nul
+git rm --cached *.pyc 2>nul
 
 :: Add and commit backend changes
 git add .
