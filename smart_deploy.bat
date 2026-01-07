@@ -53,7 +53,7 @@ if %errorlevel% neq 0 (
     echo To enable auto-upload for Backend, please run this command ONCE:
     echo ---------------------------------------------------------------
     echo cd hf_backend
-    echo git remote add huggingface https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+    echo git remote add huggingface https://huggingface.co/spaces/eslam131223-create/smartclinic-v1
     echo ---------------------------------------------------------------
 ) else (
     echo [SUCCESS] Backend deployed to Hugging Face!
