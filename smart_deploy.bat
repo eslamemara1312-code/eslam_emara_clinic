@@ -43,6 +43,9 @@ if not exist .git (
 git add .
 git commit -m "%msg%" >nul
 
+:: Ensure branch is main
+git branch -m main
+
 :: Try to push to Hugging Face
 echo Pushing to Hugging Face Space...
 git push huggingface main
