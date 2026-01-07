@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock } from 'lucide-react';
+import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock, User } from 'lucide-react';
 import { downloadBackup, uploadBackup, api as axiosInstance, getMe } from '../api';
 import * as api from '../api'; // Use all api functions
 
@@ -241,6 +241,68 @@ export default function Settings() {
                         )}
                     </div>
                 )}
+
+
+
+                {/* Profile Settings Section */}
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-white/5 md:col-span-2">
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl">
+                            <User size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">إعدادات الحساب</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">تحديث اسم المستخدم وكلمة المرور</p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const newUsername = e.target.username.value;
+                        const newPassword = e.target.password.value;
+                        
+                        if (!newUsername) return;
+
+                        try {
+                            await api.updateProfile({ 
+                                username: newUsername,
+                                password: newPassword || undefined 
+                            });
+                            setMessage({ type: 'success', text: 'تم تحديث البيانات بنجاح' });
+                            loadUserInfo(); // Reload to reflect changes
+                            e.target.reset(); // Clear password
+                        } catch (err) {
+                            console.error(err);
+                            setMessage({ type: 'error', text: err.response?.data?.detail || 'فشل التحديث' });
+                        }
+                    }} className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">اسم المستخدم</label>
+                            <input 
+                                name="username"
+                                defaultValue={currentUser?.username}
+                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none focus:border-indigo-500 transition-colors"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">كلمة المرور الجديدة</label>
+                            <input 
+                                name="password"
+                                type="password"
+                                placeholder="اتركه فارغاً إذا لم ترد التغيير"
+                                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none focus:border-indigo-500 transition-colors"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2 flex justify-end">
+                            <button type="submit" className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+                                حفظ التغييرات
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
                 {/* Backup Section */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">

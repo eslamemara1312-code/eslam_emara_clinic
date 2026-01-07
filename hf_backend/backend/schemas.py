@@ -144,6 +144,11 @@ class User(BaseModel):
     tenant: Optional["Tenant"] = None
 
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
 # --- Procedure Schemas ---
 class ProcedureBase(BaseModel):
     name: str

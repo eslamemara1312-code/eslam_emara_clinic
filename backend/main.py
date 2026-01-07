@@ -112,11 +112,39 @@ def create_first_admin():
             db.add(new_admin)
             db.commit()
             print("First admin 'eslam' created.")
-        elif admin.tenant_id is None:
-            # Migration: Assign existing admin to default tenant
             admin.tenant_id = default_tenant.id
             db.commit()
             print("Assigned existing admin 'eslam' to default tenant.")
+
+        # --- SUPER ADMIN CREATION (Auto-Seeded) ---
+        super_email = "eslamemara1312@gmail.com"
+        super_pass = "ESLAMomara11##"
+
+        super_admin = (
+            db.query(models.User).filter(models.User.username == super_email).first()
+        )
+        super_pw_hash = auth.get_password_hash(super_pass)
+
+        if not super_admin:
+            print(f"Creating Super Admin: {super_email}")
+            new_super = models.User(
+                username=super_email,
+                hashed_password=super_pw_hash,
+                role="super_admin",
+                tenant_id=None,  # Super Admin has no tenant
+            )
+            db.add(new_super)
+            db.commit()
+        else:
+            # Update password if exists (to ensure it matches what user wants)
+            if super_admin.role != "super_admin":
+                super_admin.role = "super_admin"
+                super_admin.tenant_id = None
+
+            # Update password silently
+            super_admin.hashed_password = super_pw_hash
+            db.commit()
+            print(f"Super Admin '{super_email}' ensured.")
     finally:
         db.close()
 
@@ -223,6 +251,28 @@ def get_current_user(
             )
 
     return user
+
+
+@app.put("/users/me", response_model=schemas.User)
+def update_user_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # 1. Update Username
+    if user_update.username and user_update.username != current_user.username:
+        # Check uniqueness
+        if crud.get_user(db, user_update.username):
+            raise HTTPException(status_code=400, detail="Username already registered")
+        current_user.username = user_update.username
+
+    # 2. Update Password
+    if user_update.password:
+        current_user.hashed_password = auth.get_password_hash(user_update.password)
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @app.post("/token", response_model=schemas.Token)

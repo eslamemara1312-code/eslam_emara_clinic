@@ -106,7 +106,7 @@ export default function Login({ isDarkMode, toggleDarkMode }) {
 
                 <div className="mt-8 pt-6 border-t border-slate-100/10">
                     <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                        © 2026 جميع الحقوق محفوظة لعيادة د. إسلام عمارة
+                        © 2026 جميع الحقوق محفوظة Smart Clinic
                     </p>
                 </div>
             </div>

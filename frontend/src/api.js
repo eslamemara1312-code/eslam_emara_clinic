@@ -39,6 +39,7 @@ export const login = (username, password) => {
 
 export const registerClinic = (data) => api.post('/auth/register_clinic', data);
 export const getMe = () => api.get('/users/me/');
+export const updateProfile = (data) => api.put('/users/me', data);
 
 export default api;
 

@@ -9,9 +9,9 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             manifest: {
-                name: 'عيادة د. إسلام عمارة',
-                short_name: 'عيادة عمارة',
-                description: 'نظام إدارة عيادة د. إسلام عمارة',
+                name: 'Smart Clinic',
+                short_name: 'Smart Clinic',
+                description: 'نظام إدارة العيادات الذكي - Smart Clinic',
                 theme_color: '#ffffff',
                 icons: [
                     {
