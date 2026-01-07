@@ -31,7 +31,7 @@ git remote add origin https://%user%:%token%@github.com/%user%/%repo%.git
 echo.
 echo Pushing project to NEW account...
 git branch -m main
-git push -u origin main
+git push -f -u origin main
 
 echo.
 if %errorlevel% equ 0 (
