@@ -17,6 +17,10 @@ echo __pycache__/
 echo *.pyc
 ) > hf_backend\.gitignore
 
+:: Physically delete .db files from deployment folder
+del /s /q hf_backend\backend\*.db 2>nul
+rmdir /s /q hf_backend\backend\__pycache__ 2>nul
+
 echo.
 echo ==========================================
 echo [2/3] Updating Frontend (GitHub -> Netlify)
