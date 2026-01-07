@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Calendar, Banknote, Activity, Plus, Clock, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getAppointments, getFinancialStats, getPatients } from '../api';
+import { getAppointments, getFinancialStats, getPatients, getMe } from '../api';
 
 const StatCard = ({ icon: Icon, label, value, subtext, color, onClick }) => (
     <div
@@ -31,17 +31,21 @@ export default function Dashboard() {
         outstanding: 0
     });
     const [todaysAppointments, setTodaysAppointments] = useState([]);
+    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadData() {
             try {
                 setLoading(true);
-                const [pRes, aRes, fRes] = await Promise.all([
+                const [pRes, aRes, fRes, uRes] = await Promise.all([
                     getPatients(),
                     getAppointments(),
-                    getFinancialStats()
+                    getFinancialStats(),
+                    getMe()
                 ]);
+                
+                if (uRes.data) setUser(uRes.data);
 
                 // Filter Today's Appointments
                 const today = new Date().toISOString().split('T')[0];
@@ -69,7 +73,9 @@ export default function Dashboard() {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">لوحة التحكم</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg font-medium">أهلاً بك د. إسلام، إليك ملخص نشاط عمارة لطب الأسنان اليوم</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg font-medium">
+                        أهلاً بك د. {user?.username}, إليك ملخص نشاط {user?.tenant?.name || 'العيادة'} اليوم
+                    </p>
                 </div>
                 <div className="text-left hidden md:block">
                     <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-2xl shadow-sm border border-slate-100 dark:border-white/5">

@@ -3,8 +3,8 @@ from backend import models, auth, crud
 
 db = SessionLocal()
 
-username = "admin"
-new_password = "123"
+username = "eslam"
+new_password = "1111"
 
 user = crud.get_user(db, username)
 if user:

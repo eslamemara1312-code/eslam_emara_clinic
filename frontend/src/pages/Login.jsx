@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login } from '../api';
-import { Stethoscope, Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 export default function Login({ isDarkMode, toggleDarkMode }) {
     const [username, setUsername] = useState('');
@@ -31,9 +32,7 @@ export default function Login({ isDarkMode, toggleDarkMode }) {
             <div className={`w-full max-w-md p-8 rounded-[2rem] shadow-2xl border transition-all duration-300 ${isDarkMode ? 'bg-slate-800/50 backdrop-blur-xl border-white/10' : 'bg-white border-slate-100'} text-center`}>
                 <div className="flex justify-between items-start mb-6">
                     <div className="w-10" /> {/* Spacer */}
-                    <div className="w-20 h-20 bg-primary/10 text-primary rounded-3xl flex items-center justify-center shadow-inner">
-                        <Stethoscope size={40} />
-                    </div>
+                    <img src={logo} alt="Smart Clinic Logo" className="h-24 w-auto object-contain" />
                     <button
                         onClick={toggleDarkMode}
                         className={`p-3 rounded-2xl transition-colors ${isDarkMode ? 'bg-white/5 text-yellow-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
@@ -42,8 +41,8 @@ export default function Login({ isDarkMode, toggleDarkMode }) {
                     </button>
                 </div>
 
-                <h1 className={`text-3xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>عيادة د. إسلام عمارة</h1>
-                <p className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-8 font-medium`}>مرحباً بك في نظام الإدارة الذكي</p>
+                <h1 className={`text-3xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>Smart Clinic</h1>
+                <p className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mb-8 font-medium`}>نظام إدارة العيادات الذكي</p>
 
                 {error && (
                     <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl text-sm font-bold mb-6 animate-shake">
@@ -90,6 +89,19 @@ export default function Login({ isDarkMode, toggleDarkMode }) {
                     >
                         تسجيل الدخول
                     </button>
+
+                    <div className="text-center mt-6">
+                        <Link 
+                            to="/register" 
+                            className={`inline-block w-full py-3 rounded-2xl border-2 font-bold transition-all ${
+                                isDarkMode 
+                                ? 'border-primary/50 text-primary hover:bg-primary/10' 
+                                : 'border-primary text-primary hover:bg-primary/5'
+                            }`}
+                        >
+                            تسجيل عيادة جديدة
+                        </Link>
+                    </div>
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-slate-100/10">

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2 } from 'lucide-react';
-import { downloadBackup, uploadBackup, api as axiosInstance } from '../api';
+import React, { useState, useEffect } from 'react';
+import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock } from 'lucide-react';
+import { downloadBackup, uploadBackup, api as axiosInstance, getMe } from '../api';
 import * as api from '../api'; // Use all api functions
 
 export default function Settings() {
     const [restoring, setRestoring] = useState(false);
     const [message, setMessage] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
 
     // Procedures State
     const [procedures, setProcedures] = useState([]);
@@ -14,10 +15,20 @@ export default function Settings() {
     const [editingProc, setEditingProc] = useState(null);
     const [newProc, setNewProc] = useState({ name: '', price: '' });
 
-    // Load procedures on mount
-    React.useEffect(() => {
+    // Load procedures and user on mount
+    useEffect(() => {
         loadProcedures();
+        loadUserInfo();
     }, []);
+
+    const loadUserInfo = async () => {
+        try {
+            const res = await getMe();
+            setCurrentUser(res.data);
+        } catch (err) {
+            console.error('Failed to load user info', err);
+        }
+    };
 
     const loadProcedures = async () => {
         setIsProcLoading(true);
@@ -118,6 +129,119 @@ export default function Settings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Subscription Info Section */}
+                {currentUser?.tenant && (
+                    <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-white/5 md:col-span-2">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-xl">
+                                <CreditCard size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">معلومات الاشتراك</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">تفاصيل خطة اشتراكك الحالية</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            {/* Clinic Name */}
+                            <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-1">
+                                    <Shield size={16} />
+                                    <span>اسم العيادة</span>
+                                </div>
+                                <p className="text-lg font-bold text-slate-800 dark:text-white">{currentUser.tenant.name}</p>
+                            </div>
+
+                            {/* Plan */}
+                            <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-1">
+                                    <CreditCard size={16} />
+                                    <span>الخطة</span>
+                                </div>
+                                <p className={`text-lg font-bold ${
+                                    currentUser.tenant.plan === 'premium' ? 'text-amber-600' :
+                                    currentUser.tenant.plan === 'basic' ? 'text-blue-600' :
+                                    'text-slate-600 dark:text-slate-300'
+                                }`}>
+                                    {currentUser.tenant.plan === 'premium' ? 'بريميوم ⭐' : 
+                                     currentUser.tenant.plan === 'basic' ? 'أساسي' : 'تجريبي'}
+                                </p>
+                            </div>
+
+                            {/* End Date */}
+                            <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-1">
+                                    <Calendar size={16} />
+                                    <span>تاريخ الانتهاء</span>
+                                </div>
+                                <p className={`text-lg font-bold ${
+                                    currentUser.tenant.subscription_end_date && new Date(currentUser.tenant.subscription_end_date) < new Date() 
+                                        ? 'text-red-500' 
+                                        : 'text-slate-800 dark:text-white'
+                                }`}>
+                                    {currentUser.tenant.subscription_end_date 
+                                        ? new Date(currentUser.tenant.subscription_end_date).toLocaleDateString('ar-EG', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })
+                                        : 'غير محدد (مفتوح)'}
+                                </p>
+                            </div>
+
+                            {/* Days Remaining */}
+                            <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-1">
+                                    <Clock size={16} />
+                                    <span>الأيام المتبقية</span>
+                                </div>
+                                {currentUser.tenant.subscription_end_date ? (
+                                    (() => {
+                                        const daysLeft = Math.ceil((new Date(currentUser.tenant.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24));
+                                        return (
+                                            <p className={`text-lg font-bold ${
+                                                daysLeft < 0 ? 'text-red-500' :
+                                                daysLeft <= 7 ? 'text-amber-500' :
+                                                daysLeft <= 30 ? 'text-blue-500' :
+                                                'text-emerald-500'
+                                            }`}>
+                                                {daysLeft < 0 ? `منتهي منذ ${Math.abs(daysLeft)} يوم` :
+                                                 daysLeft === 0 ? 'ينتهي اليوم!' :
+                                                 `${daysLeft} يوم`}
+                                            </p>
+                                        );
+                                    })()
+                                ) : (
+                                    <p className="text-lg font-bold text-emerald-500">∞ غير محدود</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Status Banner */}
+                        {currentUser.tenant.subscription_end_date && (
+                            (() => {
+                                const daysLeft = Math.ceil((new Date(currentUser.tenant.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24));
+                                if (daysLeft <= 7) {
+                                    return (
+                                        <div className={`mt-6 p-4 rounded-xl flex items-center gap-3 ${
+                                            daysLeft < 0 ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                                            'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                        }`}>
+                                            <AlertTriangle size={24} />
+                                            <span className="font-bold">
+                                                {daysLeft < 0 
+                                                    ? 'انتهى اشتراكك! يرجى التواصل مع الدعم للتجديد.' 
+                                                    : `اشتراكك على وشك الانتهاء! باقي ${daysLeft} يوم فقط.`}
+                                            </span>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()
+                        )}
+                    </div>
+                )}
+
                 {/* Backup Section */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-start gap-4 mb-6">

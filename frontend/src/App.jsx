@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } f
 import { Home, Users, Calendar, Banknote, Stethoscope, Menu, Settings as SettingsIcon, LogOut, TrendingDown, Shield, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { parseJwt, getToken, removeToken } from './utils';
+import api, { getMe } from './api';
 import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import Appointments from './pages/Appointments';
@@ -11,13 +12,31 @@ import Login from './pages/Login';
 import Settings from './pages/Settings';
 import Expenses from './pages/Expenses';
 import UsersManager from './pages/UsersManager';
+
 import PrintInvoice from './pages/PrintInvoice';
 import PrintRx from './pages/PrintRx';
+import RegisterClinic from './pages/RegisterClinic';
+import SuperAdmin from './pages/SuperAdmin';
 import logo from './assets/logo.png';
+
+// ... (rest of imports)
 
 function Layout({ children, toggleDarkMode, isDarkMode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
     const location = useLocation();
+
+    useEffect(() => {
+        const fetchMe = async () => {
+            try {
+                const res = await getMe();
+                setCurrentUser(res.data);
+            } catch (error) {
+                console.error("Failed to fetch user info", error);
+            }
+        };
+        if (getToken()) fetchMe();
+    }, []);
 
     // Check Role
     const token = getToken();
@@ -30,6 +49,7 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
     } catch (e) { }
 
     const isAdmin = role === 'admin';
+    const isSuperAdmin = role === 'super_admin';
 
     const navItems = [
         { icon: Home, label: 'الرئيسية', path: '/' },
@@ -37,12 +57,19 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
         { icon: Users, label: 'المرضى', path: '/patients' },
     ];
 
+    // Super Admin Link
+    if (isSuperAdmin) {
+        navItems.push(
+            { icon: Shield, label: 'إدارة النظام', path: '/admin' }
+        );
+    }
+
     // Admin Only Links
-    if (isAdmin) {
+    if (isAdmin || isSuperAdmin) {
         navItems.push(
             { icon: Banknote, label: 'الحسابات', path: '/billing' },
             { icon: TrendingDown, label: 'المصروفات', path: '/expenses' },
-            { icon: Shield, label: 'المستخدمين', path: '/users' },
+            { icon: Users, label: 'المستخدمين', path: '/users' },
             { icon: SettingsIcon, label: 'الإعدادات', path: '/settings' },
         );
     }
@@ -62,11 +89,43 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
         fixed inset-y-0 right-0 z-30 w-64 ${isDarkMode ? 'bg-slate-800/80 backdrop-blur-xl border-l border-white/5' : 'bg-white shadow-xl'} transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static
         ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
-                <div className={`h-24 flex flex-col items-center justify-center border-b ${isDarkMode ? 'border-white/5' : 'border-slate-100'} p-4`}>
-                    <img src={logo} alt="Logo" className="h-12 w-auto mb-2" />
+                <div className={`flex flex-col items-center justify-center border-b ${isDarkMode ? 'border-white/5' : 'border-slate-100'} p-4`}>
+                    <img 
+                        src={currentUser?.tenant?.logo ? `${api.defaults.baseURL}/${currentUser.tenant.logo}` : logo} 
+                        alt="Logo" 
+                        className="h-12 w-auto mb-2 object-contain" 
+                    />
                     <h1 className="text-sm font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-center">
-                        Eslam Emara Dental Clinic
+                        {currentUser?.tenant?.name || "Smart Clinic"}
                     </h1>
+                    
+                    {/* Subscription Info */}
+                    {currentUser?.tenant && (
+                        <div className="mt-2 text-center text-xs">
+                            <span className={`px-2 py-1 rounded-full font-bold ${
+                                currentUser.tenant.plan === 'premium' ? 'bg-amber-500/20 text-amber-600' :
+                                currentUser.tenant.plan === 'basic' ? 'bg-blue-500/20 text-blue-600' :
+                                'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                            }`}>
+                                {currentUser.tenant.plan === 'premium' ? 'بريميوم' : 
+                                 currentUser.tenant.plan === 'basic' ? 'أساسي' : 'تجريبي'}
+                            </span>
+                            {currentUser.tenant.subscription_end_date && (
+                                <p className={`mt-1 ${
+                                    new Date(currentUser.tenant.subscription_end_date) < new Date() ? 'text-red-500' :
+                                    Math.ceil((new Date(currentUser.tenant.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24)) <= 7 ? 'text-amber-500' :
+                                    'text-slate-500 dark:text-slate-400'
+                                }`}>
+                                    {(() => {
+                                        const daysLeft = Math.ceil((new Date(currentUser.tenant.subscription_end_date) - new Date()) / (1000 * 60 * 60 * 24));
+                                        if (daysLeft < 0) return 'انتهى الاشتراك';
+                                        if (daysLeft === 0) return 'ينتهي اليوم';
+                                        return `باقي ${daysLeft} يوم`;
+                                    })()}
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <nav className="p-4 space-y-2">
@@ -125,8 +184,14 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
                 {/* Mobile Header */}
                 <header className={`h-16 border-b md:hidden flex items-center justify-between px-4 shrink-0 sticky top-0 z-20 shadow-sm ${isDarkMode ? 'bg-slate-800 border-white/5' : 'bg-white border-slate-100'}`}>
                     <div className="flex items-center gap-2">
-                        <img src={logo} alt="Logo" className="h-8 w-auto" />
-                        <h1 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>Eslam Emara Dental Clinic</h1>
+                        <img 
+                            src={currentUser?.tenant?.logo ? `${api.defaults.baseURL}/${currentUser.tenant.logo}` : logo} 
+                            alt="Logo" 
+                            className="h-8 w-auto object-contain" 
+                        />
+                        <h1 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                            {currentUser?.tenant?.name || "Dental Clinic"}
+                        </h1>
                     </div>
                     <button
                         onClick={() => setSidebarOpen(true)}
@@ -148,6 +213,7 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
 }
 
 // Protected Route Component
+// Protected Route Component
 const AdminRoute = ({ children }) => {
     const token = getToken();
     let role = 'doctor';
@@ -158,7 +224,24 @@ const AdminRoute = ({ children }) => {
         }
     } catch (e) { }
 
-    if (role !== 'admin') {
+    if (role !== 'admin' && role !== 'super_admin') {
+        return <Navigate to="/" replace />;
+    }
+    return children;
+};
+
+// Protected Route Component for Super Admin
+const SuperAdminRoute = ({ children }) => {
+    const token = getToken();
+    let role = 'doctor';
+    try {
+        if (token) {
+            const decoded = parseJwt(token);
+            role = decoded.role || 'doctor';
+        }
+    } catch (e) { }
+
+    if (role !== 'super_admin') {
         return <Navigate to="/" replace />;
     }
     return children;
@@ -184,6 +267,7 @@ function App() {
         return (
             <Router>
                 <Routes>
+                    <Route path="/register" element={<RegisterClinic isDarkMode={darkMode} />} />
                     <Route path="*" element={<Login isDarkMode={darkMode} toggleDarkMode={toggleDarkMode} />} />
                 </Routes>
             </Router>
@@ -211,6 +295,9 @@ function App() {
                             <Route path="/expenses" element={<AdminRoute><Expenses /></AdminRoute>} />
                             <Route path="/users" element={<AdminRoute><UsersManager /></AdminRoute>} />
                             <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+                            
+                            {/* Super Admin Route */}
+                            <Route path="/admin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
 
                             <Route path="*" element={<Dashboard />} />
                         </Routes>

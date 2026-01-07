@@ -2,35 +2,31 @@ import axios from 'axios';
 import { getToken, removeToken } from './utils';
 
 // Dynamically determine API URL
-// For remote access via Cloudflare or Render, set these URLs:
-const CLOUDFLARE_URL = 'https://boutique-gentle-relatives-vacancies.trycloudflare.com';
-const HUGGINGFACE_URL = 'https://es11dental-eslam-clinic-api.hf.space'; // Your new backend URL
-
-// Auto-detect: if accessing via localhost or IP, use backend on port 8000
 const getApiUrl = () => {
+    // 1. Environment Variable (Production) - Recommended for Netlify
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+
     const hostname = window.location.hostname;
 
-    // 1. Localhost or IP
+    // 2. Localhost or IP
     if (hostname === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-        return `http://${hostname}:8000`;
+        return `http://${hostname}:8001`;
     }
 
-    // 2. If accessing via Cloudflare Tunnel, use the same origin for API
-    if (hostname.includes('trycloudflare.com')) {
-        return window.location.origin;
-    }
-
-    // 3. Default to current origin if on a custom domain, or fallback to known HF
-    if (hostname.includes('netlify.app')) return HUGGINGFACE_URL;
-    return window.location.origin;
+    // 3. Fallback to Cloudflare or HuggingFace if defined manually
+    return 'https://smartclinic-v1.hf.space'; 
 };
 
-const API_URL = getApiUrl();
+export const API_URL = getApiUrl();
+console.log('Using API URL:', API_URL);
 console.log('Using API URL:', API_URL);
 
+// Increase timeout to 30 seconds for uploads
 export const api = axios.create({
     baseURL: API_URL,
-    timeout: 10000,
+    timeout: 30000,
 });
 
 // Auth
@@ -40,6 +36,11 @@ export const login = (username, password) => {
     formData.append('password', password);
     return api.post('/token', formData);
 };
+
+export const registerClinic = (data) => api.post('/auth/register_clinic', data);
+export const getMe = () => api.get('/users/me/');
+
+export default api;
 
 // Add Interceptor for Token
 api.interceptors.request.use(config => {
