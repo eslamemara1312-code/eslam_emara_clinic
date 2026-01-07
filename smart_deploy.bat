@@ -30,7 +30,7 @@ git add .
 set /p msg="Enter commit message (Press Enter for 'Update'): "
 if "%msg%"=="" set msg=Update
 git commit -m "%msg%"
-git push
+git push -u origin main
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to push to GitHub. Check your internet or git config.
 ) else (
