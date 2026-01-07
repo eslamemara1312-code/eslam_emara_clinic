@@ -112,6 +112,7 @@ def create_first_admin():
             db.add(new_admin)
             db.commit()
             print("First admin 'eslam' created.")
+        elif admin.tenant_id is None:
             admin.tenant_id = default_tenant.id
             db.commit()
             print("Assigned existing admin 'eslam' to default tenant.")
