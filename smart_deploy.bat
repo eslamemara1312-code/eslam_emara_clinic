@@ -48,7 +48,7 @@ git branch -m main
 
 :: Try to push to Hugging Face
 echo Pushing to Hugging Face Space...
-git push huggingface main
+git push -f huggingface main
 if %errorlevel% neq 0 (
     echo.
     echo [WARNING] Could not push to Hugging Face automatically.
