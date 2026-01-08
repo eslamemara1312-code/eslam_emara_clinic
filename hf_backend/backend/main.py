@@ -446,7 +446,13 @@ def google_auth_callback(
     tenant_id = None
     try:
         # Decode the JWT passed in 'state'
-        payload = auth.jwt.decode(state, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        # Allow expired tokens (verify_exp=False) since user might take time on consent screen
+        payload = auth.jwt.decode(
+            state,
+            auth.SECRET_KEY,
+            algorithms=[auth.ALGORITHM],
+            options={"verify_exp": False},
+        )
         username: str = payload.get("sub")
         tenant_id: int = payload.get("tenant_id")
 
