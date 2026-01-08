@@ -30,7 +30,26 @@ if %errorlevel% neq 0 (
 
 :: Push Root to Hugging Face
 echo Pushing to Hugging Face Space...
-git push -f huggingface main
+
+:: 1. Create temporary deployment branch
+git branch -D hf-deploy-tmp 2>nul
+git checkout -b hf-deploy-tmp
+
+:: 2. Remove Frontend and heavy assets (HF only needs Backend)
+echo Stripping frontend assets to satisfy file size limits...
+git rm -r -f --cached frontend >nul 2>nul
+git rm -r -f --cached .gitattributes >nul 2>nul
+:: Note: We keep 'static' if it exists, but usually users upload there.
+
+:: 3. Commit the stripped version
+git commit -m "Deploy: Strip frontend for HF" --no-verify >nul 2>nul
+
+:: 4. Push the stripped branch to HF's 'main' branch
+git push -f huggingface hf-deploy-tmp:main
+
+:: 5. Cleanup: Return to local main
+git checkout main >nul 2>nul
+git branch -D hf-deploy-tmp >nul 2>nul
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to push to Hugging Face.
     echo Valid credentials required.
