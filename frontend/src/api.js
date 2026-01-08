@@ -112,6 +112,7 @@ export const updateBackupSchedule = (frequency) => {
     formData.append('frequency', frequency);
     return api.put('/settings/backup/schedule', formData);
 };
+export const getBackupStatus = () => api.get('/settings/backup/status');
 export const triggerManualBackup = () => api.post('/settings/backup/now');
 
 // Procedures

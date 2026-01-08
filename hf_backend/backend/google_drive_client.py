@@ -38,10 +38,19 @@ class GoogleDriveClient:
             CLIENT_CONFIG, scopes=SCOPES, redirect_uri=redirect_uri
         )
 
-    def get_auth_url(self):
-        auth_url, _ = self.flow.authorization_url(
-            prompt="consent", access_type="offline", include_granted_scopes="true"
-        )
+    def update_redirect_uri(self, new_redirect_uri: str):
+        self.flow.redirect_uri = new_redirect_uri
+
+    def get_auth_url(self, state: str = None):
+        kwargs = {
+            "prompt": "consent select_account",
+            "access_type": "offline",
+            "include_granted_scopes": "true",
+        }
+        if state:
+            kwargs["state"] = state
+
+        auth_url, _ = self.flow.authorization_url(**kwargs)
         return auth_url
 
     def fetch_token(self, code):

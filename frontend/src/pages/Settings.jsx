@@ -334,22 +334,40 @@ export default function Settings() {
                     </div>
 
                     <div className="space-y-4">
-                        {/* Status */}
-                        <div className={`p-4 rounded-xl border ${currentUser?.tenant?.google_refresh_token ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+    const [backupStatus, setBackupStatus] = useState({ connected: false, loading: true });
+
+    useEffect(() => {
+        checkBackupConnection();
+    }, []);
+
+    const checkBackupConnection = async () => {
+        try {
+            const res = await api.getBackupStatus();
+            setBackupStatus({ 
+                connected: res.data.status === 'connected', 
+                loading: false,
+                lastBackup: res.data.last_backup 
+            });
+        } catch (err) {
+            setBackupStatus({ connected: false, loading: false });
+        }
+    };
+
+    // ... inside the return ...
+                        <div className={`p-4 rounded-xl border ${backupStatus.connected ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
                             <div className="flex justify-between items-center">
                                 <span className="font-bold text-slate-700">الحالة:</span>
-                                <span className={`font-bold ${currentUser?.tenant?.google_refresh_token ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                    {currentUser?.tenant?.google_refresh_token ? 'متصل بجوجل درايف ✅' : 'غير متصل ❌'}
+                                <span className={`font-bold ${backupStatus.connected ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {backupStatus.loading ? 'جاري التحقق...' : (backupStatus.connected ? 'متصل بجوجل درايف ✅' : 'غير متصل ❌')}
                                 </span>
                             </div>
                             
                             {/* Connect Button */}
-                            {!currentUser?.tenant?.google_refresh_token && (
+                            {!backupStatus.connected && !backupStatus.loading && (
                                 <button
                                     onClick={async () => {
                                         try {
                                             const res = await getGoogleAuthUrl();
-                                            // Redirect to Google
                                             window.location.href = res.data.url;
                                         } catch(err) {
                                             setMessage({type: 'error', text: 'فشل الاتصال بجوجل'});
@@ -363,7 +381,7 @@ export default function Settings() {
                         </div>
 
                         {/* Settings (Only if connected) */}
-                        {currentUser?.tenant?.google_refresh_token && (
+                        {backupStatus.connected && (
                             <div className="space-y-3 p-4 bg-slate-50 rounded-xl">
                                 <div>
                                     <label className="text-sm font-bold text-slate-700">تكرار النسخ التلقائي</label>

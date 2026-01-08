@@ -64,7 +64,8 @@ def check_and_migrate_tables():
                 conn.commit()
                 print(f"Added column {col_def} to {table}")
         except Exception as e:
-            # Ignore error if column likely exists
+            # Ignore error if column likely exists, but log it just in case
+            print(f"Migration skipped for {table}.{col_def}: {e}")
             pass
 
     # Treatments
@@ -83,12 +84,12 @@ def check_and_migrate_tables():
     add_column_safe("users", "tenant_id INTEGER REFERENCES tenants(id)")
     add_column_safe("users", "role VARCHAR DEFAULT 'doctor'")
     add_column_safe("tenants", "logo VARCHAR")
-    add_column_safe("tenants", "subscription_end_date DATETIME")
+    add_column_safe("tenants", "subscription_end_date TIMESTAMP")
     add_column_safe("tenants", "plan VARCHAR DEFAULT 'trial'")
-    add_column_safe("tenants", "is_active BOOLEAN DEFAULT 1")
+    add_column_safe("tenants", "is_active BOOLEAN DEFAULT TRUE")
     add_column_safe("tenants", "backup_frequency VARCHAR DEFAULT 'off'")
     add_column_safe("tenants", "google_refresh_token VARCHAR")
-    add_column_safe("tenants", "last_backup_at DATETIME")
+    add_column_safe("tenants", "last_backup_at TIMESTAMP")
 
     print("Schema migration steps completed.")
 
@@ -388,8 +389,14 @@ def login_for_access_token(
 
 # Dynamic Redirect URI
 def get_google_redirect_uri():
-    if os.getenv("SPACE_HOST"):  # Hugging Face
-        return f"https://{os.getenv('SPACE_HOST')}/settings/backup/callback"
+    # Allow manual override via BACKEND_PUBLIC_URL (User Configured)
+    # OR automatic fallback to SPACE_HOST (System Provided, if broken, use manual)
+    host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
+    if host:
+        # User might provide "smartclinic-v1.hf.space" or "https://..."
+        if host.startswith("http"):
+            return f"{host}/settings/backup/callback"
+        return f"https://{host}/settings/backup/callback"
     return "http://localhost:8001/settings/backup/callback"
 
 
@@ -457,16 +464,23 @@ def google_auth_callback(
         # If production (Netlify), how do we know?
         # Use Referer? Or hardcode based on ENV?
         # For now, simplistic check:
-        if os.getenv("SPACE_HOST"):
+        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
+        if host:
             frontend_url = "https://esdental.netlify.app/settings"  # Hardcoded for now based on known URL
+            if os.getenv("FRONTEND_URL"):  # Allow strict override
+                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
 
         return RedirectResponse(f"{frontend_url}?status=success")
 
     except Exception as e:
         # Redirect to error
         frontend_url = "http://localhost:5173/settings"
-        if os.getenv("SPACE_HOST"):
+        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
+        if host:
             frontend_url = "https://esdental.netlify.app/settings"
+            if os.getenv("FRONTEND_URL"):
+                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
+
         return RedirectResponse(f"{frontend_url}?status=error&detail={str(e)}")
 
 
