@@ -1,0 +1,8 @@
+
+frontend/
+scripts/
+backend_legacy/
+.git/
+node_modules/
+*.bat
+*.ps1

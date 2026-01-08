@@ -288,19 +288,7 @@ def get_db():
 
 @app.get("/")
 def read_root():
-    host = (
-        os.getenv("BACKEND_PUBLIC_URL")
-        or os.getenv("SPACE_HOST")
-        or "LOCALHOST_FALLBACK"
-    )
-    return {
-        "message": "Welcome to EslamEmara Clinic API",
-        "detected_host": host,
-        "env_check": {
-            "BACKEND_PUBLIC_URL": os.getenv("BACKEND_PUBLIC_URL"),
-            "SPACE_HOST": os.getenv("SPACE_HOST"),
-        },
-    }
+    return {"message": "Welcome to EslamEmara Clinic API"}
 
 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -416,86 +404,69 @@ def get_google_redirect_uri():
 # We can just update the existing instance's redirect_uri before using it,
 # or simpler: create a helper to get client.
 def get_drive_client():
-    uri = get_google_redirect_uri()
-    drive_client.update_redirect_uri(uri)
+    drive_client.redirect_uri = get_google_redirect_uri()
     return drive_client
 
 
 @app.get("/settings/backup/auth")
-def google_auth_url(
-    current_user: models.User = Depends(get_current_user),
-    token: str = Depends(oauth2_scheme),  # Capture raw token
-):
+def google_auth_url(current_user: models.User = Depends(get_current_user)):
     client = get_drive_client()
-    # Pass the JWT token as the 'state' parameter to persist user identity through the redirect
-    return {"url": client.get_auth_url(state=token)}
+    return {"url": client.get_auth_url()}
 
 
 @app.get("/settings/backup/callback")  # Changed to GET
 def google_auth_callback(
-    code: str,
-    state: str = None,  # This contains our JWT token
+    code: str,  # No longer Form(...)
     db: Session = Depends(get_db),
+    # Cookie auth might not work if browser redirects directly?
+    # Valid point. If Google redirects, it includes cookies for domain.
+    # But if Backend is on different domain (HF) than Frontend (Netlify),
+    # Cookies (SameSite) might be an issue?
+    # Actually, the user 'Connecing' initiated the flow from Frontend.
+    # The Backend sets the cookie. If same domain (localhost), it works.
+    # If Cross-domain (Netlify -> HF), we might lose auth context?
+    # BUT, we are just saving the token to the 'current tenant'.
+    # We need to know WHICH tenant initiated.
+    # We can pass 'state' parameter with tenant_id (or a simplified token).
+    # For now, let's assume Cookies work or use 'state'.
+    # If standard cookie auth fails, we can't identify the user.
+    # Let's try relying on Cookie. If it fails, I'll recommend 'state'.
+    current_user: models.User = Depends(get_current_user),
 ):
-    # 1. Validate State (User Identity) manually since we don't have Authorization header
-    if not state:
-        raise HTTPException(
-            status_code=400, detail="Missing state parameter (Authentication lost)"
-        )
-
-    tenant_id = None
-    try:
-        # Decode the JWT passed in 'state'
-        # Allow expired tokens (verify_exp=False) since user might take time on consent screen
-        payload = auth.jwt.decode(
-            state,
-            auth.SECRET_KEY,
-            algorithms=[auth.ALGORITHM],
-            options={"verify_exp": False},
-        )
-        username: str = payload.get("sub")
-        tenant_id: int = payload.get("tenant_id")
-
-        if username is None or tenant_id is None:
-            raise Exception("Invalid token in state")
-
-    except Exception as e:
-        # Redirect to Frontend with Auth Error
-        frontend_url = "http://localhost:5173/settings"
-        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
-        if host:
-            frontend_url = "https://smartdentclinic.netlify.app/settings"
-            if os.getenv("FRONTEND_URL"):
-                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
-        return RedirectResponse(
-            f"{frontend_url}?status=error&detail=AuthFailed_StateInvalid"
-        )
-
     try:
         client = get_drive_client()
         tokens = client.fetch_token(code)
         refresh_token = tokens.get("refresh_token")
 
         if not refresh_token:
-            raise Exception(
-                "Google refused to send Refresh Token. Revoke access and try again."
-            )
+            # If user already granted, Google might not send refresh token again unless we force 'prompt=consent'
+            # We should probably handle this by redirecting to error page or just saving access token?
+            # No, offline access needs refresh token.
+            # Ideally we should force simple notification.
+            print("Warning: No refresh token returned")
 
-        # Save to Tenant (Using ID from decoded state)
-        tenant = db.query(models.Tenant).filter(models.Tenant.id == tenant_id).first()
-        if not tenant:
-            raise Exception("Tenant not found")
-
+        # Save to Tenant
+        tenant = (
+            db.query(models.Tenant)
+            .filter(models.Tenant.id == current_user.tenant_id)
+            .first()
+        )
         if refresh_token:
             tenant.google_refresh_token = refresh_token
+        # If no refresh_token but we got here, it means we are connected (maybe re-connected).
+        # We can assume success if we didn't crash.
 
         db.commit()
 
         # Redirect back to Frontend
+        # Determine Frontend URL
         frontend_url = "http://localhost:5173/settings"
+        # If production (Netlify), how do we know?
+        # Use Referer? Or hardcode based on ENV?
+        # For now, simplistic check:
         host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
         if host:
-            frontend_url = "https://smartdentclinic.netlify.app/settings"  # Hardcoded for now based on known URL
+            frontend_url = "https://esdental.netlify.app/settings"  # Hardcoded for now based on known URL
             if os.getenv("FRONTEND_URL"):  # Allow strict override
                 frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
 
@@ -506,7 +477,7 @@ def google_auth_callback(
         frontend_url = "http://localhost:5173/settings"
         host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
         if host:
-            frontend_url = "https://dreslamemara.netlify.app/settings"
+            frontend_url = "https://esdental.netlify.app/settings"
             if os.getenv("FRONTEND_URL"):
                 frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
 

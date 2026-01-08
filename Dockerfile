@@ -1,20 +1,19 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for psycopg2
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY backend/requirements.txt .
+# Install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/ /app/backend/
+# Copy backend code
+COPY backend ./backend
 
-# HuggingFace uses PORT 7860 by default
-ENV PORT=7860
+# Create static directory for logos
+RUN mkdir -p static/logos
+
+# Expose port for Hugging Face
 EXPOSE 7860
 
-CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker backend.main:app --bind 0.0.0.0:$PORT"]
+# Run the app
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]

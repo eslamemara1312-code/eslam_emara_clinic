@@ -153,14 +153,35 @@ def create_first_admin():
             db.commit()
         else:
             # Update password if exists (to ensure it matches what user wants)
-            if super_admin.role != "super_admin":
+            # Create/Get Default Tenant for Super Admin (to allow feature testing)
+            default_tenant = (
+                db.query(models.Tenant)
+                .filter(models.Tenant.name == "System Admin Clinic")
+                .first()
+            )
+            if not default_tenant:
+                default_tenant = models.Tenant(
+                    name="System Admin Clinic",
+                    plan="premium",
+                    subscription_end_date=datetime.utcnow() + timedelta(days=3650),
+                )
+                db.add(default_tenant)
+                db.commit()
+                db.refresh(default_tenant)
+
+            # Update password and link tenant
+            if (
+                super_admin.role != "super_admin"
+                or super_admin.tenant_id != default_tenant.id
+            ):
                 super_admin.role = "super_admin"
-                super_admin.tenant_id = None
+                super_admin.tenant_id = default_tenant.id
+                print(f"Linked Super Admin to tenant: {default_tenant.id}")
 
             # Update password silently
             super_admin.hashed_password = super_pw_hash
             db.commit()
-            print(f"Super Admin '{super_email}' ensured.")
+            print(f"Super Admin '{super_email}' ensured with Tenant access.")
     finally:
         db.close()
 
@@ -288,7 +309,19 @@ def get_db():
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to EslamEmara Clinic API"}
+    host = (
+        os.getenv("BACKEND_PUBLIC_URL")
+        or os.getenv("SPACE_HOST")
+        or "LOCALHOST_FALLBACK"
+    )
+    return {
+        "message": "Welcome to EslamEmara Clinic API",
+        "detected_host": host,
+        "env_check": {
+            "BACKEND_PUBLIC_URL": os.getenv("BACKEND_PUBLIC_URL"),
+            "SPACE_HOST": os.getenv("SPACE_HOST"),
+        },
+    }
 
 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -404,84 +437,105 @@ def get_google_redirect_uri():
 # We can just update the existing instance's redirect_uri before using it,
 # or simpler: create a helper to get client.
 def get_drive_client():
-    drive_client.redirect_uri = get_google_redirect_uri()
+    uri = get_google_redirect_uri()
+    drive_client.update_redirect_uri(uri)
     return drive_client
 
 
 @app.get("/settings/backup/auth")
-def google_auth_url(current_user: models.User = Depends(get_current_user)):
+def google_auth_url(
+    current_user: models.User = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),  # Capture raw token
+):
     client = get_drive_client()
-    return {"url": client.get_auth_url()}
+    # Pass the JWT token as the 'state' parameter to persist user identity through the redirect
+    return {"url": client.get_auth_url(state=token)}
 
 
 @app.get("/settings/backup/callback")  # Changed to GET
 def google_auth_callback(
-    code: str,  # No longer Form(...)
+    code: str,
+    state: str = None,  # This contains our JWT token
     db: Session = Depends(get_db),
-    # Cookie auth might not work if browser redirects directly?
-    # Valid point. If Google redirects, it includes cookies for domain.
-    # But if Backend is on different domain (HF) than Frontend (Netlify),
-    # Cookies (SameSite) might be an issue?
-    # Actually, the user 'Connecing' initiated the flow from Frontend.
-    # The Backend sets the cookie. If same domain (localhost), it works.
-    # If Cross-domain (Netlify -> HF), we might lose auth context?
-    # BUT, we are just saving the token to the 'current tenant'.
-    # We need to know WHICH tenant initiated.
-    # We can pass 'state' parameter with tenant_id (or a simplified token).
-    # For now, let's assume Cookies work or use 'state'.
-    # If standard cookie auth fails, we can't identify the user.
-    # Let's try relying on Cookie. If it fails, I'll recommend 'state'.
-    current_user: models.User = Depends(get_current_user),
 ):
+    # 1. Validate State (User Identity) manually since we don't have Authorization header
+    if not state:
+        raise HTTPException(
+            status_code=400, detail="Missing state parameter (Authentication lost)"
+        )
+
+    tenant_id = None
+    try:
+        # Decode the JWT passed in 'state'
+        # Allow expired tokens (verify_exp=False) since user might take time on consent screen
+        payload = auth.jwt.decode(
+            state,
+            auth.SECRET_KEY,
+            algorithms=[auth.ALGORITHM],
+            options={"verify_exp": False},
+        )
+        username: str = payload.get("sub")
+        tenant_id: int = payload.get("tenant_id")
+
+        if username is None or tenant_id is None:
+            raise Exception("Invalid token in state")
+
+    except Exception as e:
+        # Redirect to Frontend with Auth Error
+        frontend_url = "http://localhost:5173/settings"
+        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
+        if host:
+            frontend_url = "https://smartdentclinic.netlify.app/settings"
+            if os.getenv("FRONTEND_URL"):
+                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
+        print(f"Callback Error: {e}")
+        return RedirectResponse(
+            f"{frontend_url}?status=error&detail=AuthFailed_{str(e)}"
+        )
+
     try:
         client = get_drive_client()
         tokens = client.fetch_token(code)
         refresh_token = tokens.get("refresh_token")
 
         if not refresh_token:
-            # If user already granted, Google might not send refresh token again unless we force 'prompt=consent'
-            # We should probably handle this by redirecting to error page or just saving access token?
-            # No, offline access needs refresh token.
-            # Ideally we should force simple notification.
-            print("Warning: No refresh token returned")
+            raise Exception(
+                "Google refused to send Refresh Token. Revoke access and try again."
+            )
 
-        # Save to Tenant
-        tenant = (
-            db.query(models.Tenant)
-            .filter(models.Tenant.id == current_user.tenant_id)
-            .first()
-        )
+        # Save to Tenant (Using ID from decoded state)
+        tenant = db.query(models.Tenant).filter(models.Tenant.id == tenant_id).first()
+        if not tenant:
+            raise Exception("Tenant not found")
+
         if refresh_token:
             tenant.google_refresh_token = refresh_token
-        # If no refresh_token but we got here, it means we are connected (maybe re-connected).
-        # We can assume success if we didn't crash.
 
         db.commit()
 
         # Redirect back to Frontend
-        # Determine Frontend URL
-        frontend_url = "http://localhost:5173/settings"
-        # If production (Netlify), how do we know?
-        # Use Referer? Or hardcode based on ENV?
-        # For now, simplistic check:
-        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
-        if host:
-            frontend_url = "https://esdental.netlify.app/settings"  # Hardcoded for now based on known URL
-            if os.getenv("FRONTEND_URL"):  # Allow strict override
-                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-        return RedirectResponse(f"{frontend_url}?status=success")
+        # If running in cloud (detected via SPACE_HOST), ensure we don't accidentally redirect to localhost
+        # But if FRONTEND_URL is set, we use it.
+        # If not set, we default to localhost (dev) or raise warning?
+        # Better: Set reasonable default for prod if known, but encourage env var.
+        if os.getenv("SPACE_HOST") and not os.getenv("FRONTEND_URL"):
+            print(
+                "WARNING: FRONTEND_URL not set in Cloud Environment. Redirects might fail."
+            )
+            # Fallback to the known Netlify URL as a safety net until env var is set
+            frontend_url = "https://smartdentclinic.netlify.app"
+
+        return RedirectResponse(f"{frontend_url}/settings?status=success")
 
     except Exception as e:
         # Redirect to error
-        frontend_url = "http://localhost:5173/settings"
-        host = os.getenv("BACKEND_PUBLIC_URL") or os.getenv("SPACE_HOST")
-        if host:
-            frontend_url = "https://esdental.netlify.app/settings"
-            if os.getenv("FRONTEND_URL"):
-                frontend_url = f"{os.getenv('FRONTEND_URL')}/settings"
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        if os.getenv("SPACE_HOST") and not os.getenv("FRONTEND_URL"):
+            frontend_url = "https://smartdentclinic.netlify.app"
 
-        return RedirectResponse(f"{frontend_url}?status=error&detail={str(e)}")
+        return RedirectResponse(f"{frontend_url}/settings?status=error&detail={str(e)}")
 
 
 @app.put("/settings/backup/schedule")
@@ -515,27 +569,56 @@ def trigger_backup_now(
     # Trigger logic manually
     try:
         # Filtered Dump
-        data = backup_service.create_json_dump(db, tenant_id=tenant.id)
+        print(f"Starting Backup for Tenant: {tenant.id} ({tenant.name})")
+        try:
+            data = backup_service.create_json_dump(db, tenant_id=tenant.id)
+        except Exception as e:
+            print(f"Backup Dump Generation Failed: {e}")
+            import traceback
+
+            traceback.print_exc()
+            raise Exception(f"Database Export Failed: {str(e)}")
 
         filename = f"manual_backup_{tenant.name}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.json"
 
-        # Ensure uploads dir exists (safer with absolute path derived earlier or ensure exists)
+        # Ensure uploads dir exists
         os.makedirs("uploads", exist_ok=True)
         file_path = f"uploads/{filename}"
 
         with open(file_path, "w") as f:
             json.dump(data, f)
 
-        google_drive_client.GoogleDriveClient.upload_file(
-            tenant.google_refresh_token, file_path, filename
+        print(
+            f"Dump saved to {file_path}, Size: {os.path.getsize(file_path)} bytes. Uploading..."
         )
+
+        try:
+            google_drive_client.GoogleDriveClient.upload_file(
+                tenant.google_refresh_token, file_path, filename
+            )
+        except Exception as e:
+            print(f"Google Drive Upload Failed: {e}")
+            import traceback
+
+            traceback.print_exc()
+            # Check for specific Google Auth errors if possible, or just pass generic
+            if "RefreshError" in str(type(e).__name__) or "invalid_grant" in str(e):
+                raise Exception(
+                    "Google Drive Token Expired. Please Reconnect in Settings."
+                )
+            raise Exception(f"Google Drive Upload Failed: {str(e)}")
 
         tenant.last_backup_at = datetime.utcnow()
         db.commit()
-        os.remove(file_path)
+
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
         return {"message": "Backup uploaded successfully"}
     except Exception as e:
+        print(f"Manual Backup CRITICAL ERROR: {e}")
+        # Return internal server error but with the detail
         raise HTTPException(status_code=500, detail=str(e))
 
 

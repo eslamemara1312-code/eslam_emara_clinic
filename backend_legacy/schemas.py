@@ -234,10 +234,6 @@ class TenantBase(BaseModel):
     plan: Optional[str] = "trial"
     is_active: Optional[bool] = True
     subscription_end_date: Optional[datetime] = None
-    # Backup Fields
-    google_refresh_token: Optional[str] = None
-    backup_frequency: Optional[str] = "off"
-    last_backup_at: Optional[datetime] = None
 
 
 class TenantCreate(TenantBase):
