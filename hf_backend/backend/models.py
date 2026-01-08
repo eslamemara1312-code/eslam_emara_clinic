@@ -26,6 +26,11 @@ class Tenant(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Backup Settings
+    backup_frequency = Column(String, default="off")  # off, daily, weekly, monthly
+    google_refresh_token = Column(String, nullable=True)
+    last_backup_at = Column(DateTime, nullable=True)
+
     users = relationship("User", back_populates="tenant")
 
 
@@ -80,7 +85,7 @@ class Appointment(Base):
     __tablename__ = "appointments"
 
     id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.id"))
+    patient_id = Column(Integer, ForeignKey("patients.id"), index=True)
     date_time = Column(DateTime)
     status = Column(String, default="Scheduled")  # Scheduled, Completed, Cancelled
     notes = Column(Text, nullable=True)
@@ -92,7 +97,7 @@ class ToothStatus(Base):
     __tablename__ = "tooth_status"
 
     id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.id"))
+    patient_id = Column(Integer, ForeignKey("patients.id"), index=True)
     tooth_number = Column(Integer)  # 1-32 or 1-85 (FDI)
     condition = Column(String)  # Healthy, Decayed, Missing, Filled, Crown, RootCanal
     notes = Column(Text, nullable=True)
@@ -104,7 +109,7 @@ class Treatment(Base):
     __tablename__ = "treatments"
 
     id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.id"))
+    patient_id = Column(Integer, ForeignKey("patients.id"), index=True)
     tooth_number = Column(Integer, nullable=True)  # Optional, might be general cleaning
     diagnosis = Column(String)
     procedure = Column(String)
@@ -124,7 +129,7 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.id"))
+    patient_id = Column(Integer, ForeignKey("patients.id"), index=True)
     amount = Column(Float)
     date = Column(DateTime, default=datetime.utcnow)
     notes = Column(Text, nullable=True)

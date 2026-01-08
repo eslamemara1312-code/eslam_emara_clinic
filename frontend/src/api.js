@@ -100,6 +100,20 @@ export const uploadBackup = (formData) => api.post('/backup/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
 });
 
+// Google Drive Backup
+export const getGoogleAuthUrl = () => api.get('/settings/backup/auth');
+export const sendGoogleAuthCode = (code) => {
+    const formData = new FormData();
+    formData.append('code', code);
+    return api.post('/settings/backup/callback', formData);
+};
+export const updateBackupSchedule = (frequency) => {
+    const formData = new FormData();
+    formData.append('frequency', frequency);
+    return api.put('/settings/backup/schedule', formData);
+};
+export const triggerManualBackup = () => api.post('/settings/backup/now');
+
 // Procedures
 export const getProcedures = () => api.get('/procedures/');
 export const createProcedure = (data) => api.post('/procedures/', data);

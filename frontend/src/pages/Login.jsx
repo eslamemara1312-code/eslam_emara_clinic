@@ -23,7 +23,17 @@ export default function Login({ isDarkMode, toggleDarkMode }) {
             }
             window.location.href = '/'; // Force reload to update app state
         } catch (err) {
-            setError('اسم المستخدم أو كلمة المرور غير صحيحة');
+            console.error("Login Error:", err);
+            if (err.response) {
+                // Server responded with a status code
+                setError(err.response.data.detail || 'خطأ في الخادم: ' + err.response.status);
+            } else if (err.request) {
+                // Request made but no response received
+                setError('فشل الاتصال بالخادم. تأكد من تشغيل البرنامج.');
+            } else {
+                // Something else happened
+                setError('حدث خطأ غير معروف: ' + err.message);
+            }
         }
     };
 

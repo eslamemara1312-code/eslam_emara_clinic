@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock, User } from 'lucide-react';
-import { downloadBackup, uploadBackup, api as axiosInstance, getMe } from '../api';
+import { downloadBackup, uploadBackup, getGoogleAuthUrl, sendGoogleAuthCode, updateBackupSchedule, triggerManualBackup, api as axiosInstance, getMe } from '../api';
 import * as api from '../api'; // Use all api functions
 
 export default function Settings() {
@@ -97,7 +97,22 @@ export default function Settings() {
             link.click();
             link.remove();
         } catch (err) {
-            setMessage({ type: 'error', text: 'فشل تحميل النسخة الاحتياطية' });
+            console.error(err);
+            let msg = 'فشل تحميل النسخة الاحتياطية';
+            
+            if (err.response && err.response.data instanceof Blob) {
+                try {
+                    const text = await err.response.data.text();
+                    const json = JSON.parse(text);
+                    if (json.detail) msg = json.detail;
+                } catch (e) {
+                    // console.error("Failed to parse error blob", e);
+                }
+            } else if (err.response?.data?.detail) {
+                msg = err.response.data.detail;
+            }
+            
+            setMessage({ type: 'error', text: msg });
         }
     };
 
@@ -304,50 +319,125 @@ export default function Settings() {
                     </form>
                 </div>
 
-                {/* Backup Section */}
+                {/* Cloud Backup Section */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                     <div className="flex items-start gap-4 mb-6">
                         <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
                             <Database size={32} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">النسخ الاحتياطي</h3>
+                            <h3 className="text-lg font-bold text-slate-800">النسخ الاحتياطي السحابي (Google Drive)</h3>
                             <p className="text-slate-500 text-sm mt-1 leading-relaxed">
-                                قم بتحميل نسخة من بيانات العيادة بانتظام لتجنب فقدان البيانات.
+                                اربط حسابك بجوجل درايف لحفظ البيانات تلقائياً.
                             </p>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        <button
-                            onClick={handleDownload}
-                            className="w-full p-4 border-2 border-slate-100 rounded-xl flex items-center justify-between hover:border-blue-500 hover:bg-blue-50 group transition-all"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Download className="text-slate-400 group-hover:text-blue-500" />
-                                <div className="text-right">
-                                    <span className="block font-bold text-slate-700 group-hover:text-blue-700">تحميل نسخة احتياطية</span>
-                                </div>
+                        {/* Status */}
+                        <div className={`p-4 rounded-xl border ${currentUser?.tenant?.google_refresh_token ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex justify-between items-center">
+                                <span className="font-bold text-slate-700">الحالة:</span>
+                                <span className={`font-bold ${currentUser?.tenant?.google_refresh_token ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {currentUser?.tenant?.google_refresh_token ? 'متصل بجوجل درايف ✅' : 'غير متصل ❌'}
+                                </span>
                             </div>
-                        </button>
+                            
+                            {/* Connect Button */}
+                            {!currentUser?.tenant?.google_refresh_token && (
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const res = await getGoogleAuthUrl();
+                                            // Redirect to Google
+                                            window.location.href = res.data.url;
+                                        } catch(err) {
+                                            setMessage({type: 'error', text: 'فشل الاتصال بجوجل'});
+                                        }
+                                    }}
+                                    className="mt-3 w-full py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition"
+                                >
+                                    ربط الحساب الآن
+                                </button>
+                            )}
+                        </div>
 
-                        <div className="relative w-full p-4 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-between hover:border-amber-500 hover:bg-amber-50 group transition-all">
-                            <input
-                                type="file"
-                                accept=".db"
-                                onChange={handleUpload}
-                                disabled={restoring}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            <div className="flex items-center gap-3">
-                                <Upload className="text-slate-400 group-hover:text-amber-500" />
-                                <div className="text-right">
-                                    <span className="block font-bold text-slate-700 group-hover:text-amber-700">
-                                        {restoring ? 'جاري الاستعادة...' : 'استعادة نسخة سابقة'}
-                                    </span>
+                        {/* Settings (Only if connected) */}
+                        {currentUser?.tenant?.google_refresh_token && (
+                            <div className="space-y-3 p-4 bg-slate-50 rounded-xl">
+                                <div>
+                                    <label className="text-sm font-bold text-slate-700">تكرار النسخ التلقائي</label>
+                                    <select 
+                                        defaultValue={currentUser?.tenant?.backup_frequency || 'off'}
+                                        onChange={async (e) => {
+                                            try {
+                                                await updateBackupSchedule(e.target.value);
+                                                setMessage({type: 'success', text: 'تم تحديث الجدول'});
+                                                loadUserInfo();
+                                            } catch(err) {
+                                               setMessage({type: 'error', text: 'فشل التحديث'});
+                                            }
+                                        }}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    >
+                                        <option value="off">موقف (Off)</option>
+                                        <option value="daily">يومي (كل 24 ساعة)</option>
+                                        <option value="weekly">أسبوعي (كل 7 أيام)</option>
+                                        <option value="monthly">شهري (كل 30 يوم)</option>
+                                    </select>
                                 </div>
+
+                                <button 
+                                    onClick={async () => {
+                                        try {
+                                            setMessage({type: 'success', text: 'جاري النسخ...'});
+                                            await triggerManualBackup();
+                                            setMessage({type: 'success', text: 'تم النسخ بنجاح إلى Drive!'});
+                                            loadUserInfo(); // Update last backup time
+                                        } catch(err) {
+                                            setMessage({type: 'error', text: 'فشل النسخ'});
+                                        }
+                                    }}
+                                    className="w-full py-2 border border-blue-600 text-blue-600 rounded-lg font-bold hover:bg-blue-50"
+                                >
+                                    نسخ الآن يدوياً
+                                </button>
+                                
+                                {currentUser?.tenant?.last_backup_at && (
+                                    <p className="text-xs text-slate-500 text-center pt-2">
+                                        آخر نسخ: {new Date(currentUser.tenant.last_backup_at + "Z").toLocaleString('ar-EG')}
+                                    </p>
+                                )}
                             </div>
-                            {restoring && <div className="animate-spin h-5 w-5 border-2 border-amber-500 rounded-full border-t-transparent"></div>}
+                        )}
+                        
+                        <div className="border-t pt-4">
+                             <h4 className="font-bold text-slate-700 mb-2">نسخ محلي (على الجهاز)</h4>
+                             <div className="grid grid-cols-2 gap-3">
+                                 <button
+                                    onClick={handleDownload}
+                                    className="p-3 border border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition"
+                                >
+                                    <Download size={20} />
+                                    <span className="text-sm font-bold">تحميل نسخة (.db)</span>
+                                </button>
+                                
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept=".db"
+                                        onChange={handleUpload}
+                                        disabled={restoring}
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                                    />
+                                    <button
+                                        className={`w-full h-full p-3 border border-dashed border-amber-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-amber-50 text-amber-600 hover:text-amber-800 transition ${restoring ? 'opacity-50' : ''}`}
+                                    >
+                                        {restoring ? <div className="animate-spin h-5 w-5 border-2 border-amber-600 rounded-full border-t-transparent"/> : <Upload size={20} />}
+                                        <span className="text-sm font-bold">استعادة نسخة</span>
+                                    </button>
+                                </div>
+                             </div>
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,91 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "hashed_password": "$2b$12$Nqq1kst5Cx/cyLaqoGZL2ujTeC3Ml19GNWRd8EgMXwnyHBgl4W/Tm",
+      "role": "doctor",
+      "tenant_id": null
+    },
+    {
+      "id": 2,
+      "username": "eslam",
+      "hashed_password": "$2b$12$5cnC5IEFzY8WGIxj3pcytubsINI4lKoX4.PM.O8VVENfVaUECJ4f6",
+      "role": "admin",
+      "tenant_id": 1
+    },
+    {
+      "id": 9,
+      "username": "eslamemara1312@gmail.com",
+      "hashed_password": "$2b$12$0.2ySHeOrm6Re.faHJJqdegsK2wNNsnmFljaCLRva0AuAL2wdPclW",
+      "role": "super_admin",
+      "tenant_id": null
+    },
+    {
+      "id": 10,
+      "username": "r",
+      "hashed_password": "$2b$12$pUGrTSR.QiozP3yyk/KzF.fIQGgoIeKc4eZNL0QMwMj.krfRWgomu",
+      "role": "admin",
+      "tenant_id": 2
+    },
+    {
+      "id": 11,
+      "username": "1",
+      "hashed_password": "$2b$12$lqKuZQZDwIfVcEvrqHA6Fe26/MteD/8joyxZahtlz8vBKnd76eFEe",
+      "role": "admin",
+      "tenant_id": 3
+    }
+  ],
+  "procedures": [
+    {
+      "id": 1,
+      "name": "حشو عصب",
+      "price": 1200.0,
+      "tenant_id": null
+    },
+    {
+      "id": 2,
+      "name": "حشو ليزر",
+      "price": 600.0,
+      "tenant_id": null
+    },
+    {
+      "id": 3,
+      "name": "حشو ليزر + ",
+      "price": 700.0,
+      "tenant_id": null
+    },
+    {
+      "id": 4,
+      "name": "خلع",
+      "price": 200.0,
+      "tenant_id": null
+    },
+    {
+      "id": 5,
+      "name": "PFM crown",
+      "price": 900.0,
+      "tenant_id": null
+    },
+    {
+      "id": 6,
+      "name": "zercon crown",
+      "price": 2000.0,
+      "tenant_id": null
+    },
+    {
+      "id": 7,
+      "name": "scalling",
+      "price": 300.0,
+      "tenant_id": null
+    }
+  ],
+  "patients": [],
+  "expenses": [],
+  "appointments": [],
+  "tooth_status": [],
+  "treatments": [],
+  "payments": [],
+  "attachments": [],
+  "prescriptions": []
+}

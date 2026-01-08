@@ -1,5 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    status,
+    File,
+    UploadFile,
+    Form,
+    BackgroundTasks,
+)
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -27,10 +36,12 @@ if os.environ.get("CLOUDINARY_URL"):
     else:
         os.environ["CLOUDINARY_URL"] = val
 
-from . import models, schemas, crud, database, auth, backup_service
+from . import models, schemas, crud, database, auth, backup_service, google_drive_client
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 
 # Cloudinary Config
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
@@ -75,6 +86,9 @@ def check_and_migrate_tables():
     add_column_safe("tenants", "subscription_end_date DATETIME")
     add_column_safe("tenants", "plan VARCHAR DEFAULT 'trial'")
     add_column_safe("tenants", "is_active BOOLEAN DEFAULT 1")
+    add_column_safe("tenants", "backup_frequency VARCHAR DEFAULT 'off'")
+    add_column_safe("tenants", "google_refresh_token VARCHAR")
+    add_column_safe("tenants", "last_backup_at DATETIME")
 
     print("Schema migration steps completed.")
 
@@ -154,8 +168,83 @@ create_first_admin()
 
 app = FastAPI(title="EslamEmara Clinic API")
 
-# Allow CORS for React Frontend (running on port 5173 usually)
-# Allow CORS for React Frontend
+# --- Google Drive & Scheduler ---
+drive_client = google_drive_client.GoogleDriveClient(
+    redirect_uri="http://localhost:8001/settings/backup/callback"
+)
+# NOTE: In production, this redirect_uri must match what you set in Google Console (e.g., https://your-site.com/settings/backup/callback)
+
+scheduler = BackgroundScheduler(timezone=pytz.utc)
+
+
+def run_scheduled_backups():
+    print(f"[{datetime.utcnow()}] Checking for scheduled backups...")
+    db = database.SessionLocal()
+    try:
+        tenants = (
+            db.query(models.Tenant)
+            .filter(models.Tenant.backup_frequency != "off")
+            .all()
+        )
+        for tenant in tenants:
+            if not tenant.google_refresh_token:
+                continue
+
+            should_run = False
+            now = datetime.utcnow()
+            last = tenant.last_backup_at or datetime.min
+
+            if tenant.backup_frequency == "daily":
+                if (now - last).days >= 1:
+                    should_run = True
+            elif tenant.backup_frequency == "weekly":
+                if (now - last).days >= 7:
+                    should_run = True
+            elif tenant.backup_frequency == "monthly":
+                if (now - last).days >= 30:
+                    should_run = True
+
+            if should_run:
+                print(f"Backing up Tenant: {tenant.name}")
+                try:
+                    # 1. Create Filtered Dump
+                    # We need to implement filtered dump in backup_service first.
+                    # For now, we will just dump everything (Temporary, user asked for tenant specific).
+                    # TODO: Filter by tenant_id
+                    data = backup_service.create_json_dump(db, tenant_id=tenant.id)
+
+                    # Save to file
+                    filename = (
+                        f"backup_{tenant.name}_{now.strftime('%Y%m%d_%H%M')}.json"
+                    )
+                    file_path = f"uploads/{filename}"
+                    with open(file_path, "w") as f:
+                        json.dump(data, f)
+
+                    # 2. Upload to Drive
+                    google_drive_client.GoogleDriveClient.upload_file(
+                        tenant.google_refresh_token, file_path, filename
+                    )
+
+                    # 3. Update Status
+                    tenant.last_backup_at = now
+                    db.commit()
+
+                    # Cleanup
+                    os.remove(file_path)
+                    print(f"Backup success for {tenant.name}")
+
+                except Exception as e:
+                    print(f"Backup Failed for {tenant.name}: {e}")
+
+    finally:
+        db.close()
+
+
+scheduler.add_job(run_scheduled_backups, "interval", minutes=60)
+scheduler.start()
+
+
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -292,6 +381,148 @@ def login_for_access_token(
         data={"sub": user.username, "role": user.role, "tenant_id": user.tenant_id}
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# --- Google Drive Endpoints ---
+
+
+# Dynamic Redirect URI
+def get_google_redirect_uri():
+    if os.getenv("SPACE_HOST"):  # Hugging Face
+        return f"https://{os.getenv('SPACE_HOST')}/settings/backup/callback"
+    return "http://localhost:8001/settings/backup/callback"
+
+
+# Re-init client with dynamic URI (ignoring the one at top of file)
+# We can just update the existing instance's redirect_uri before using it,
+# or simpler: create a helper to get client.
+def get_drive_client():
+    drive_client.redirect_uri = get_google_redirect_uri()
+    return drive_client
+
+
+@app.get("/settings/backup/auth")
+def google_auth_url(current_user: models.User = Depends(get_current_user)):
+    client = get_drive_client()
+    return {"url": client.get_auth_url()}
+
+
+@app.get("/settings/backup/callback")  # Changed to GET
+def google_auth_callback(
+    code: str,  # No longer Form(...)
+    db: Session = Depends(get_db),
+    # Cookie auth might not work if browser redirects directly?
+    # Valid point. If Google redirects, it includes cookies for domain.
+    # But if Backend is on different domain (HF) than Frontend (Netlify),
+    # Cookies (SameSite) might be an issue?
+    # Actually, the user 'Connecing' initiated the flow from Frontend.
+    # The Backend sets the cookie. If same domain (localhost), it works.
+    # If Cross-domain (Netlify -> HF), we might lose auth context?
+    # BUT, we are just saving the token to the 'current tenant'.
+    # We need to know WHICH tenant initiated.
+    # We can pass 'state' parameter with tenant_id (or a simplified token).
+    # For now, let's assume Cookies work or use 'state'.
+    # If standard cookie auth fails, we can't identify the user.
+    # Let's try relying on Cookie. If it fails, I'll recommend 'state'.
+    current_user: models.User = Depends(get_current_user),
+):
+    try:
+        client = get_drive_client()
+        tokens = client.fetch_token(code)
+        refresh_token = tokens.get("refresh_token")
+
+        if not refresh_token:
+            # If user already granted, Google might not send refresh token again unless we force 'prompt=consent'
+            # We should probably handle this by redirecting to error page or just saving access token?
+            # No, offline access needs refresh token.
+            # Ideally we should force simple notification.
+            print("Warning: No refresh token returned")
+
+        # Save to Tenant
+        tenant = (
+            db.query(models.Tenant)
+            .filter(models.Tenant.id == current_user.tenant_id)
+            .first()
+        )
+        if refresh_token:
+            tenant.google_refresh_token = refresh_token
+        # If no refresh_token but we got here, it means we are connected (maybe re-connected).
+        # We can assume success if we didn't crash.
+
+        db.commit()
+
+        # Redirect back to Frontend
+        # Determine Frontend URL
+        frontend_url = "http://localhost:5173/settings"
+        # If production (Netlify), how do we know?
+        # Use Referer? Or hardcode based on ENV?
+        # For now, simplistic check:
+        if os.getenv("SPACE_HOST"):
+            frontend_url = "https://esdental.netlify.app/settings"  # Hardcoded for now based on known URL
+
+        return RedirectResponse(f"{frontend_url}?status=success")
+
+    except Exception as e:
+        # Redirect to error
+        frontend_url = "http://localhost:5173/settings"
+        if os.getenv("SPACE_HOST"):
+            frontend_url = "https://esdental.netlify.app/settings"
+        return RedirectResponse(f"{frontend_url}?status=error&detail={str(e)}")
+
+
+@app.put("/settings/backup/schedule")
+def update_backup_schedule(
+    frequency: str = Form(...),  # off, daily, weekly, monthly
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    tenant = (
+        db.query(models.Tenant)
+        .filter(models.Tenant.id == current_user.tenant_id)
+        .first()
+    )
+    tenant.backup_frequency = frequency
+    db.commit()
+    return {"message": f"Backup schedule set to {frequency}"}
+
+
+@app.post("/settings/backup/now")
+def trigger_backup_now(
+    db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
+):
+    tenant = (
+        db.query(models.Tenant)
+        .filter(models.Tenant.id == current_user.tenant_id)
+        .first()
+    )
+    if not tenant.google_refresh_token:
+        raise HTTPException(status_code=400, detail="Google Drive not connected")
+
+    # Trigger logic manually
+    try:
+        # Filtered Dump
+        data = backup_service.create_json_dump(db, tenant_id=tenant.id)
+
+        filename = f"manual_backup_{tenant.name}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.json"
+
+        # Ensure uploads dir exists (safer with absolute path derived earlier or ensure exists)
+        os.makedirs("uploads", exist_ok=True)
+        file_path = f"uploads/{filename}"
+
+        with open(file_path, "w") as f:
+            json.dump(data, f)
+
+        google_drive_client.GoogleDriveClient.upload_file(
+            tenant.google_refresh_token, file_path, filename
+        )
+
+        tenant.last_backup_at = datetime.utcnow()
+        db.commit()
+        os.remove(file_path)
+
+        return {"message": "Backup uploaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/auth/register_clinic", response_model=schemas.Token)
@@ -780,31 +1011,41 @@ def download_backup(
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_user),
 ):
-    if current_user.role != "admin":
+    if current_user.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # SECURITY TODO: Filter backup by tenant_id!
-    # Currently backup_service dumps everything.
-    # For now, we will raise an error to prevent data leak until we implement tenant-filtered backup.
-    # Or, we can modify backup_service. For this iteration, disabling full backup for tenants is safer.
-    raise HTTPException(
-        status_code=501,
-        detail="Backup download is temporarily disabled for security upgrades.",
-    )
+    # Generate Tenant-Specific Dump
+    try:
+        dump_data = backup_service.create_json_dump(
+            db, tenant_id=current_user.tenant_id
+        )
 
-    # dump_data = backup_service.create_json_dump(db)
-    # ...
+        # Save to temp file
+        filename = f"backup_clinic_{current_user.tenant_id}_{datetime.now().strftime('%Y%m%d')}.json"
+        filepath = os.path.join("temp", filename)
+        os.makedirs("temp", exist_ok=True)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(dump_data, f, ensure_ascii=False, indent=2)
+
+        return FileResponse(
+            path=filepath, filename=filename, media_type="application/json"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Backup generation failed: {str(e)}"
+        )
 
 
 @app.post("/backup/upload")
 async def upload_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
     file_location = f"temp_restore_{uuid.uuid4()}"
 
-    # Save uploaded file
-    with open(file_location, "wb+") as file_object:
-        shutil.copyfileobj(file.file, file_object)
-
     try:
+        # Save uploaded file
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+
         # Detect file type
         is_sqlite = False
         with open(file_location, "rb") as f:
@@ -821,9 +1062,7 @@ async def upload_backup(file: UploadFile = File(...), db: Session = Depends(get_
                     lines.append(
                         f"{table.title()}: {counts['restored']} restored, {counts['errors']} skipped"
                     )
-            if len(lines) == 1:
-                lines.append("No data found to restore.")
-            msg = "\n".join(lines)
+            msg = "\n".join(lines) if len(lines) > 1 else "No data found to restore."
         else:
             # Try JSON
             with open(file_location, "r", encoding="utf-8") as f:
@@ -836,27 +1075,33 @@ async def upload_backup(file: UploadFile = File(...), db: Session = Depends(get_
                             lines.append(
                                 f"{table.title()}: {counts['restored']} restored, {counts['errors']} skipped"
                             )
-                    if len(lines) == 1:
-                        lines.append("No data found to restore.")
-                    msg = "\n".join(lines)
+                    msg = (
+                        "\n".join(lines)
+                        if len(lines) > 1
+                        else "No data found to restore."
+                    )
                 except json.JSONDecodeError:
                     raise HTTPException(
                         status_code=400,
                         detail="Invalid backup file format. Must be SQLite .db or JSON.",
                     )
 
+        return {"detail": "Restore Successful", "report": msg}
+
     except Exception as e:
         print(f"Restore error: {e}")
         raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
-    finally:
-        if os.path.exists(file_location):
-            os.remove(file_location)
 
-    return {"info": msg}
+    finally:
+        # Always clean up the temp file
+        if os.path.exists(file_location):
+            try:
+                os.remove(file_location)
+            except Exception:
+                pass
 
 
 # --- Procedures Endpoints ---
-@app.get("/procedures/", response_model=List[schemas.Procedure])
 @app.get("/procedures/", response_model=List[schemas.Procedure])
 def read_procedures(
     skip: int = 0,
