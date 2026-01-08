@@ -19,7 +19,7 @@ if "%token%"=="" (
     exit /b
 )
 
-cd hf_backend
+:: cd hf_backend (Removed after refactor)
 :: Remove old remote if exists to be safe
 git remote remove huggingface 2>nul
 git remote add huggingface https://%hf_user%:%token%@huggingface.co/spaces/%hf_user%/%hf_space%
