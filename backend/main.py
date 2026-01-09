@@ -1450,7 +1450,7 @@ async def proxy_ocr(request: OCRRequest):
     # Using Engine 2 which is more modern and better at handling noise/handwriting.
     # We specify 'ara' for explicit Arabic support.
     payload = {
-        "apikey": "helloworld",
+        "apikey": os.getenv("OCR_API_KEY", "helloworld"),
         "language": "ara",
         "base64Image": request.base64Image,
         "OCREngine": "1",

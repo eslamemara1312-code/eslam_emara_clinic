@@ -39,7 +39,7 @@ git commit -m "Deploy: Backend V1" >nul 2>nul
 
 :: Push to HF (Force)
 echo Pushing clean state to Hugging Face...
-git push -f https://huggingface.co/spaces/eslam131223-create/smartclinic-v1 %DEPLOY_BRANCH%:main
+git push -f https://huggingface.co/spaces/SmartClinic/v1 %DEPLOY_BRANCH%:main
 set PUSH_STATUS=%errorlevel%
 
 :: Cleanup
