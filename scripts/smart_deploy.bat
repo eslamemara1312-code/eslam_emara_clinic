@@ -31,28 +31,38 @@ if %errorlevel% neq 0 (
 :: Push Root to Hugging Face
 echo Pushing to Hugging Face Space...
 
-:: 1. Create temporary deployment branch
-git branch -D hf-deploy-tmp 2>nul
-git checkout -b hf-deploy-tmp
+:: 1. Create fresh orphan branch (No history = No binary file bloat)
+set DEPLOY_BRANCH=hf-deploy-v4-clean
+git branch -D %DEPLOY_BRANCH% >nul 2>nul
+git checkout --orphan %DEPLOY_BRANCH%
 
-:: 2. Remove Frontend and heavy assets (HF only needs Backend)
-echo Stripping frontend assets to satisfy file size limits...
-git rm -r -f --cached frontend >nul 2>nul
-git rm -r -f --cached .gitattributes >nul 2>nul
-:: Note: We keep 'static' if it exists, but usually users upload there.
+:: 2. Prepare files (Strict Allowlist - backend ONLY)
+:: Unstage everything first
+git reset . >nul 2>nul
 
-:: 3. Commit the stripped version
-git commit -m "Deploy: Strip frontend for HF" --no-verify >nul 2>nul
+echo Adding backend files...
+git add backend/
+git add requirements.txt
+git add Dockerfile
+git add README.md
+git add .dockerignore
+git add .env.example
 
-:: 4. Push the stripped branch to HF's 'main' branch
-git push -f huggingface hf-deploy-tmp:main
+:: 3. Commit
+git commit -m "Deploy: Backend V1 (Clean)" >nul 2>nul
 
-:: 5. Cleanup: Return to local main
+:: 4. Push to HF
+echo Pushing clean state to Hugging Face...
+git push -f huggingface %DEPLOY_BRANCH%:main
+set PUSH_STATUS=%errorlevel%
+
+:: 5. Cleanup
 git checkout main >nul 2>nul
-git branch -D hf-deploy-tmp >nul 2>nul
-if %errorlevel% neq 0 (
+git branch -D %DEPLOY_BRANCH% >nul 2>nul
+
+if %PUSH_STATUS% neq 0 (
     echo [ERROR] Failed to push to Hugging Face.
-    echo Valid credentials required.
+    echo Valid credentials required or binary files (logo.png) still persisted.
 ) else (
     echo [SUCCESS] Backend deployed to Hugging Face!
 )
