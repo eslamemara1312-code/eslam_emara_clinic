@@ -15,6 +15,26 @@ export default function Settings() {
     const [editingProc, setEditingProc] = useState(null);
     const [newProc, setNewProc] = useState({ name: '', price: '' });
 
+    // Backup State
+    const [backupStatus, setBackupStatus] = useState({ connected: false, loading: true });
+
+    useEffect(() => {
+        checkBackupConnection();
+    }, []);
+
+    const checkBackupConnection = async () => {
+        try {
+            const res = await api.getBackupStatus();
+            setBackupStatus({ 
+                connected: res.data.status === 'connected', 
+                loading: false,
+                lastBackup: res.data.last_backup 
+            });
+        } catch (err) {
+            setBackupStatus({ connected: false, loading: false });
+        }
+    };
+
     // Load procedures and user on mount
     useEffect(() => {
         loadProcedures();
@@ -334,24 +354,7 @@ export default function Settings() {
                     </div>
 
                     <div className="space-y-4">
-    const [backupStatus, setBackupStatus] = useState({ connected: false, loading: true });
 
-    useEffect(() => {
-        checkBackupConnection();
-    }, []);
-
-    const checkBackupConnection = async () => {
-        try {
-            const res = await api.getBackupStatus();
-            setBackupStatus({ 
-                connected: res.data.status === 'connected', 
-                loading: false,
-                lastBackup: res.data.last_backup 
-            });
-        } catch (err) {
-            setBackupStatus({ connected: false, loading: false });
-        }
-    };
 
     // ... inside the return ...
                         <div className={`p-4 rounded-xl border ${backupStatus.connected ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
