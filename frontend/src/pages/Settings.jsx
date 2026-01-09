@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock, User } from 'lucide-react';
+import { Database, Upload, Download, AlertTriangle, CheckCircle, List, Plus, Edit2, Trash2, CreditCard, Calendar, Shield, Clock, User, Search } from 'lucide-react';
 import { downloadBackup, uploadBackup, getGoogleAuthUrl, sendGoogleAuthCode, updateBackupSchedule, triggerManualBackup, api as axiosInstance, getMe } from '../api';
 import * as api from '../api'; // Use all api functions
 
@@ -14,6 +14,7 @@ export default function Settings() {
     const [isProcModalOpen, setIsProcModalOpen] = useState(false);
     const [editingProc, setEditingProc] = useState(null);
     const [newProc, setNewProc] = useState({ name: '', price: '' });
+    const [procSearch, setProcSearch] = useState('');
 
     // Backup State
     const [backupStatus, setBackupStatus] = useState({ connected: false, loading: true });
@@ -155,6 +156,9 @@ export default function Settings() {
             setRestoring(false);
         }
     };
+
+    // Filter procedures
+    const filteredProcedures = procedures.filter(p => p.name.toLowerCase().includes(procSearch.toLowerCase()));
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -463,52 +467,66 @@ export default function Settings() {
                     </div>
                 </div>
 
-                {/* Procedures Section */}
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
-                                <List size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">قائمة العلاجات</h3>
-                                <p className="text-slate-500 text-sm mt-1">
-                                    أضف الإجراءات العلاجية وأسعارها لتسهيل إدخالها لاحقاً
-                                </p>
-                            </div>
+            {/* Procedures Section */}
+            <div className="bg-white dark:bg-slate-800/50 dark:backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/5">
+                <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-4 bg-primary/10 text-primary rounded-2xl">
+                            <List size={32} />
                         </div>
-                        <button
-                            onClick={() => {
-                                setEditingProc(null);
-                                setNewProc({ name: '', price: '' });
-                                setIsProcModalOpen(true);
-                            }}
-                            className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                        >
-                            <Plus size={20} />
-                        </button>
+                        <div>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white">قائمة الأسعار</h3>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold mt-1">إدارة أسعار الخدمات العلاجية</p>
+                        </div>
                     </div>
+                    <button
+                        onClick={() => {
+                             setEditingProc(null);
+                             setNewProc({ name: '', price: '' });
+                             setIsProcModalOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-xl hover:bg-slate-800 dark:hover:bg-slate-100 transition-all shadow-lg active:scale-95"
+                    >
+                        <Plus size={20} />
+                        إضافة إجراء
+                    </button>
+                </div>
 
-                    <div className="overflow-y-auto max-h-[300px] space-y-2 pr-1 custom-scrollbar">
-                        {isProcLoading ? (
-                            <div className="text-center py-10 text-slate-400">جاري التحميل...</div>
-                        ) : procedures.length === 0 ? (
-                            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed">لا يوجد إجراءات مضافة</div>
-                        ) : (
-                            procedures.map(proc => (
-                                <div key={proc.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-purple-200 transition-all">
-                                    <div>
-                                        <p className="font-bold text-slate-800">{proc.name}</p>
-                                        <p className="text-sm text-emerald-600 font-bold">{proc.price} ج.م</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openEditProc(proc)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDeleteProcedure(proc.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                {/* Search Bar */}
+                <div className="mb-6 relative">
+                    <input
+                        type="text"
+                        placeholder="بحث عن إجراء..."
+                        className="w-full p-4 pr-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-white/5 outline-none focus:border-primary dark:focus:border-primary font-bold text-slate-700 dark:text-white transition-all"
+                        value={procSearch}
+                        onChange={(e) => setProcSearch(e.target.value)}
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                       <Search size={20} />
                     </div>
+                </div>
+
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    {isProcLoading ? (
+                        <p className="text-center py-8 text-slate-500 font-bold">جاري التحميل...</p>
+                    ) : filteredProcedures.length > 0 ? (
+                        filteredProcedures.map(proc => (
+                            <div key={proc.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5 hover:border-primary/50 transition-all group">
+                                <div>
+                                    <p className="font-black text-lg text-slate-800 dark:text-white">{proc.name}</p>
+                                    <p className="text-primary font-bold mt-1">{proc.price} ج.م</p>
+                                </div>
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => openEditProc(proc)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors"><Edit2 size={18} /></button>
+                                    <button onClick={() => handleDeleteProcedure(proc.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"><Trash2 size={18} /></button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+                             لا توجد إجراءات مطابقة للبحث
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -549,5 +567,6 @@ export default function Settings() {
                 </div>
             )}
         </div>
+    </div>
     );
 }
