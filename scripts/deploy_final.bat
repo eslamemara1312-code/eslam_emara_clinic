@@ -3,7 +3,8 @@ chcp 65001 >nul
 title Smart Clinic - Final Deploy
 
 echo ==========================================
-echo [1/2] Updating Frontend (GitHub -> Netlify)
+echo [1/2] Updating Frontend (GitHub)
+echo      Remote: origin (eslam_emara_clinic)
 echo ==========================================
 git checkout -f main
 git add .
