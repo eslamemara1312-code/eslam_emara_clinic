@@ -126,6 +126,22 @@ class FinancialStats(BaseModel):
     today_expenses: float = 0.0
 
 
+class DashboardStats(BaseModel):
+    total_patients: int
+    total_appointments_today: int
+    # Inherits financial stats from FinancialStats
+    total_revenue: float
+    total_received: float
+    outstanding: float
+    monthly_revenue: float
+    total_expenses: float = 0.0
+    net_profit: float = 0.0
+    today_revenue: float = 0.0
+    today_received: float = 0.0
+    today_outstanding: float = 0.0
+    today_expenses: float = 0.0
+
+
 # --- Auth Schemas ---
 class Token(BaseModel):
     access_token: str

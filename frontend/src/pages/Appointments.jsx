@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, User, CheckCircle, XCircle, MoreVertical, LayoutGrid, List as ListIcon } from 'lucide-react';
-import { getAppointments, createAppointment, updateAppointmentStatus, getPatients } from '../api';
+import { Calendar, Clock, Plus, User, CheckCircle, XCircle, Trash2, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { getAppointments, createAppointment, updateAppointmentStatus, deleteAppointment, getPatients } from '../api';
 import { getTodayDateTimeStr } from '../utils/toothUtils';
 
 export default function Appointments() {
@@ -44,6 +44,17 @@ export default function Appointments() {
             await updateAppointmentStatus(id, status);
             loadData();
         } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("هل أنت متأكد من حذف هذا الموعد نهائياً؟")) return;
+        try {
+            await deleteAppointment(id);
+            setAppointments(prev => prev.filter(a => a.id !== id));
+        } catch (err) {
+            alert("فشل حذف الموعد");
             console.error(err);
         }
     };

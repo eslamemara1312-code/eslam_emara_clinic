@@ -76,6 +76,7 @@ export const deletePatient = (id) => api.delete(`/patients/${id}`);
 export const getAppointments = () => api.get('/appointments/');
 export const createAppointment = (data) => api.post('/appointments/', data);
 export const updateAppointmentStatus = (id, status) => api.put(`/appointments/${id}/status?status=${status}`);
+export const deleteAppointment = (id) => api.delete(`/appointments/${id}`);
 
 // Dental Chart
 export const getPatientTeeth = (patientId) => api.get(`/patients/${patientId}/tooth_status`);
@@ -92,6 +93,7 @@ export const createPayment = (data) => api.post('/payments/', data);
 export const getAllPayments = () => api.get('/payments/');
 export const getPatientPayments = (patientId) => api.get(`/patients/${patientId}/payments`);
 export const getFinancialStats = () => api.get('/finance/stats');
+export const getDashboardStats = () => api.get('/stats/dashboard');
 export const deletePayment = (id) => api.delete(`/payments/${id}`);
 
 // Backup

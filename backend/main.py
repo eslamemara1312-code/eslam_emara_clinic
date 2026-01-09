@@ -946,6 +946,14 @@ def delete_patient(
     return crud.delete_patient(db, patient_id, tenant_id=current_user.tenant_id)
 
 
+@app.get("/stats/dashboard", response_model=schemas.DashboardStats)
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.get_dashboard_stats(db, current_user.tenant_id)
+
+
 # --- Appointments Endpoints ---
 @app.post("/appointments/", response_model=schemas.Appointment)
 def create_appointment(
@@ -980,6 +988,20 @@ def update_appt_status(
     return crud.update_appointment_status(
         db, appointment_id, status, current_user.tenant_id
     )
+
+
+@app.delete("/appointments/{appointment_id}", response_model=schemas.Appointment)
+def delete_appointment(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user),
+):
+    appointment = crud.delete_appointment(
+        db, appointment_id=appointment_id, tenant_id=current_user.tenant_id
+    )
+    if appointment is None:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    return appointment
 
 
 # --- Dental Chart & Treatments ---

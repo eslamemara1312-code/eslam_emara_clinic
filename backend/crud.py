@@ -377,6 +377,39 @@ def get_financial_stats(db: Session, tenant_id: int):
     }
 
 
+def get_dashboard_stats(db: Session, tenant_id: int):
+    # Reuse financial stats logic
+    fin_stats = get_financial_stats(db, tenant_id)
+
+    # 1. Total Patients Count (O(1) with optimized count)
+    total_patients = (
+        db.query(func.count(models.Patient.id))
+        .filter(models.Patient.tenant_id == tenant_id)
+        .scalar()
+    )
+
+    # 2. Today's Appointments Count
+    from datetime import datetime
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_appointments_today = (
+        db.query(func.count(models.Appointment.id))
+        .join(models.Patient)
+        .filter(
+            models.Patient.tenant_id == tenant_id,
+            func.date(models.Appointment.date_time) == func.date(today_start),
+        )
+        .scalar()
+    )
+
+    return {
+        **fin_stats,
+        "total_patients": total_patients,
+        "total_appointments_today": total_appointments_today,
+    }
+
+
 # --- Auth CRUD ---
 def get_user(db: Session, username: str):
     return (

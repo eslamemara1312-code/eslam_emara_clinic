@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Calendar, Banknote, Activity, Plus, Clock, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getAppointments, getFinancialStats, getPatients, getMe } from '../api';
+import { getPatients, getAppointments, getFinancialStats, getMe, getDashboardStats } from '../api';
 
 const StatCard = ({ icon: Icon, label, value, subtext, color, onClick }) => (
     <div
@@ -13,7 +13,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color, onClick }) => (
         </div>
         <div className="relative z-10">
             <p className="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">{label}</p>
-            <p className="text-2xl font-black text-slate-800 dark:text-white">{value}</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-white">{value}</p>
             {subtext && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">{subtext}</p>}
         </div>
 
@@ -38,27 +38,27 @@ export default function Dashboard() {
         async function loadData() {
             try {
                 setLoading(true);
-                const [pRes, aRes, fRes, uRes] = await Promise.all([
-                    getPatients(),
+                // Parallel fetch: Stats for cards, Appointments for list
+                const [statsRes, apptsRes, userRes] = await Promise.all([
+                    getDashboardStats(),
                     getAppointments(),
-                    getFinancialStats(),
                     getMe()
                 ]);
                 
-                if (uRes.data) setUser(uRes.data);
+                if (userRes.data) setUser(userRes.data);
 
-                // Filter Today's Appointments
-                const today = new Date().toISOString().split('T')[0];
-                const todaysAppts = aRes.data.filter(app => app.date_time.startsWith(today) && app.status === 'Scheduled');
-
+                // Stats from efficient endpoint
                 setStats({
-                    patients: pRes.data.length,
-                    appointments: todaysAppts.length,
-                    revenue: fRes.data.today_received.toLocaleString() + ' ج.م',
-                    outstanding: fRes.data.today_outstanding.toLocaleString() + ' ج.م'
+                    patients: statsRes.data.total_patients,
+                    appointments: statsRes.data.total_appointments_today,
+                    revenue: statsRes.data.today_received.toLocaleString() + ' ج.م',
+                    outstanding: statsRes.data.today_outstanding.toLocaleString() + ' ج.م'
                 });
 
-                setTodaysAppointments(todaysAppts.slice(0, 5)); // Show next 5
+                // Schedule List (Client-side filter of the recent 100 appts)
+                const today = new Date().toISOString().split('T')[0];
+                const todaysAppts = apptsRes.data.filter(app => app.date_time.startsWith(today) && app.status !== 'Cancelled');
+                setTodaysAppointments(todaysAppts.slice(0, 5));
             } catch (err) {
                 console.error("Dashboard Load Error", err);
             } finally {

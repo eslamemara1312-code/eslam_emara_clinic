@@ -17,6 +17,7 @@ import PrintInvoice from './pages/PrintInvoice';
 import PrintRx from './pages/PrintRx';
 import RegisterClinic from './pages/RegisterClinic';
 import SuperAdmin from './pages/SuperAdmin';
+import GlobalSearch from './components/GlobalSearch';
 import logo from './assets/logo.png';
 
 // ... (rest of imports)
@@ -181,24 +182,26 @@ function Layout({ children, toggleDarkMode, isDarkMode }) {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                {/* Mobile Header */}
-                <header className={`h-16 border-b md:hidden flex items-center justify-between px-4 shrink-0 sticky top-0 z-20 shadow-sm ${isDarkMode ? 'bg-slate-800 border-white/5' : 'bg-white border-slate-100'}`}>
-                    <div className="flex items-center gap-2">
-                        <img 
-                            src={currentUser?.tenant?.logo ? `${api.defaults.baseURL}/${currentUser.tenant.logo}` : logo} 
-                            alt="Logo" 
-                            className="h-8 w-auto object-contain" 
-                        />
-                        <h1 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+
+                {/* Header (Desktop & Mobile) */}
+                <header className={`h-16 border-b flex items-center justify-between px-4 md:px-8 shrink-0 sticky top-0 z-20 shadow-sm ${isDarkMode ? 'bg-slate-800/80 backdrop-blur-xl border-white/5' : 'bg-white/80 backdrop-blur-xl border-slate-100'}`}>
+                    {/* Mobile Menu & Logo */}
+                    <div className="flex items-center gap-4 md:hidden">
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="p-2 rounded-lg hover:bg-slate-50 text-slate-600 active:bg-slate-100 transition-colors"
+                        >
+                            <Menu size={24} />
+                        </button>
+                        <h1 className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
                             {currentUser?.tenant?.name || "Dental Clinic"}
                         </h1>
                     </div>
-                    <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="p-2 rounded-lg hover:bg-slate-50 text-slate-600 active:bg-slate-100 transition-colors"
-                    >
-                        <Menu size={24} />
-                    </button>
+
+                    {/* Desktop Search Area */}
+                    <div className="flex-1 flex max-w-xl mx-auto">
+                        <GlobalSearch />
+                    </div>
                 </header>
 
                 {/* Scrollable Content */}
